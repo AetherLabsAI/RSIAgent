@@ -173,6 +173,25 @@ def test_cumulative_nudges_never_terminate_productive_agent(monkeypatch, tmp_pat
                for m in history) == 2
 
 
+def test_json_format_retry_keeps_context_and_only_executes_parsed_action(monkeypatch, tmp_path):
+    monkeypatch.setenv("FORGE_JSON_ACTION_RETRY", "1")
+    requests = []
+    replies = iter(("Tool choice is none, so I cannot act.",
+                    '{"program":{"lang":"bash","code":"echo actual work"}}',
+                    '{"done":null}'))
+    def fake_chat(*args, **kwargs):
+        requests.append({**kwargs, "history": list(kwargs.get("history", []))})
+        return next(replies)
+    monkeypatch.setattr(L, "chat", fake_chat)
+    vm = _VM()
+    result, history = L.run_attempt("practice", vm, _practice_cfg(), ArtifactSink(str(tmp_path)))
+    assert result.status == "done" and vm.codes == ["echo actual work"]
+    assert "json_object" not in requests[0]
+    assert requests[1]["json_object"] is True
+    assert requests[1]["history"][-1]["content"] == "Tool choice is none, so I cannot act."
+    assert "json_object" not in requests[2]
+
+
 def test_configured_user_channel_failure_aborts_infra_invalid(monkeypatch, tmp_path):
     cfg = _practice_cfg()
     monkeypatch.setattr(

@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
@@ -33,7 +34,9 @@ def _api_key() -> str:
 
 
 _client = None
-LAST_REASONING = ""                # v38: reasoning of the most recent successful call
+# Phase1 branches and delegated eyes issue completions concurrently. The next
+# pop must retrieve this execution thread's response, never another branch's.
+_LAST_REASONING = threading.local()
 _PROVIDER_COUNTS = {}              # model -> provider -> successful response count
 
 # Internal transcript field for exact image bytes that a native-sighted agent has
@@ -189,6 +192,30 @@ class LLMTransportError(RuntimeError):
         super().__init__(f"{model} transport failure{suffix}")
 
 
+class _CompletionResponseError(ValueError):
+    """A successful HTTP exchange contained an error or no completion.
+
+    OpenRouter can send an error envelope after committing HTTP 200. Preserve
+    that envelope and generation ID; its embedded code drives the same retry
+    policy as ordinary HTTP errors. An unclassified empty response stays
+    retryable, since it does not establish a malformed request.
+    """
+
+    def __init__(self, response):
+        error = getattr(response, "error", None)
+        self.body = {"id": getattr(response, "id", None),
+                     "provider": getattr(response, "provider", None),
+                     "error": error}
+        value = error.get("code") if isinstance(error, dict) else None
+        try:
+            code = int(value)
+        except (TypeError, ValueError):
+            code = None
+        self.status_code = code if code is not None and 400 <= code <= 599 else None
+        super().__init__("response contained a provider error" if error
+                         else "response had no choices")
+
+
 def _status_code(exc) -> int:
     """Best-effort status extraction across OpenAI SDK exception versions."""
     value = getattr(exc, "status_code", None)
@@ -208,7 +235,8 @@ def _recoverable_transport(exc) -> bool:
         # keyword raising TypeError) into an infinite infrastructure wait. The SDK's
         # connection/API family, ordinary socket failures, and our explicit malformed
         # response sentinel are the status-less conditions retrying can repair.
-        return (isinstance(exc, (APIConnectionError, APITimeoutError, APIError,
+        return (isinstance(exc, (_CompletionResponseError,
+                                 APIConnectionError, APITimeoutError, APIError,
                                  ConnectionError, TimeoutError))
                 or (isinstance(exc, ValueError)
                     and str(exc) == "response had no choices"))
@@ -236,8 +264,8 @@ def pop_last_reasoning() -> str:
     K3 protocol: 'add the COMPLETE assistant message to the next request. Do not
     keep only content' — the loop re-attaches this to history when
     cfg.reasoning_in_history is set."""
-    global LAST_REASONING
-    r, LAST_REASONING = LAST_REASONING, ""
+    r = getattr(_LAST_REASONING, "value", "")
+    _LAST_REASONING.value = ""
     return r
 
 
@@ -253,7 +281,8 @@ def chat(model: str, system: str, user: str,
          reasoning_effort: str = None, history: list = None,
          image=None, reasoning_max_tokens: int = 0, top_p: float = -1.0,
          provider_order=None, provider_allow_fallbacks: bool = True,
-         provider_require_parameters: bool = False) -> str:
+         provider_require_parameters: bool = False,
+         json_object: bool = False) -> str:
     """One chat completion. ``history`` is the growing conversation (working memory —
     dropping it was anchor's biggest bug). ``image`` (png/jpg bytes, or a LIST of
     them — v13 auto-tiling attaches an overview plus native-resolution tiles) rides
@@ -269,6 +298,8 @@ def chat(model: str, system: str, user: str,
     after an API error because that would change the frozen experiment mid-run."""
     messages = _request_messages(system, user, history=history, image=image)
     kwargs = {}
+    if json_object:
+        kwargs["response_format"] = {"type": "json_object"}
     if top_p is not None and top_p >= 0:
         kwargs["top_p"] = float(top_p)             # pinned explicitly (K3 report:
         #                                            "temperature = 1.0 and top-p = 1.0").
@@ -304,12 +335,22 @@ def chat(model: str, system: str, user: str,
         try:                                       # 5xx, rate-limit): a flaky response must not kill a run
             resp = _c().chat.completions.create(model=model, messages=messages,
                                                 max_tokens=max_tokens, temperature=temperature, **kwargs)
-            if resp is not None and getattr(resp, "choices", None):
-                break
-            raise ValueError("response had no choices")   # malformed/empty body -> retry like an error
+            if (getattr(resp, "error", None)
+                    or not getattr(resp, "choices", None)):
+                raise _CompletionResponseError(resp)
+            break
         except Exception as e:                     # noqa: BLE001
             name = type(e).__name__
-            if kwargs and not order:               # legacy compatibility: a model may
+            if isinstance(e, _CompletionResponseError):
+                error = e.body.get("error")
+                metadata = error.get("metadata") if isinstance(error, dict) else None
+                log.warning("%s completion response failure: id=%s provider=%s "
+                            "embedded_code=%s error_type=%s", model,
+                            e.body["id"], e.body["provider"], e.status_code,
+                            metadata.get("error_type") if isinstance(metadata, dict) else None)
+            if kwargs and not order and not isinstance(e, _CompletionResponseError):
+                # A returned error/empty completion is not evidence that optional
+                # fields are unsupported. Preserve the exact request on its retry.
                 log.warning("%s erred with optional request fields (%s); dropping them "
                             "and retrying", model, name)
                 kwargs = {}
@@ -359,9 +400,9 @@ def chat(model: str, system: str, user: str,
         log.warning("%s returned %d unsolicited native tool call(s) (%s); "
                     "they were recorded as transport drift and not executed",
                     model, len(native_calls), ", ".join(names))
-    global LAST_REASONING                          # v38: keep the thinking channel —
-    LAST_REASONING = getattr(choice.message, "reasoning", None) or ""  # even (especially)
-    #                                                on empty-content turns
+    # Keep the thinking channel, including empty-content turns, associated with
+    # this caller until its own run loop appends the complete assistant message.
+    _LAST_REASONING.value = getattr(choice.message, "reasoning", None) or ""
     if not txt.strip() and not truncated:          # v36.1: EMPTY-AT-STOP — the model ended
         rsn = getattr(choice.message, "reasoning", None) or ""   # its turn inside the hidden
         if rsn:                                    # channel. Log the tail for diagnosis
@@ -395,7 +436,8 @@ def chat(model: str, system: str, user: str,
                     reasoning_max_tokens=reasoning_max_tokens, top_p=top_p,
                     provider_order=order,
                     provider_allow_fallbacks=provider_allow_fallbacks,
-                    provider_require_parameters=provider_require_parameters)
+                    provider_require_parameters=provider_require_parameters,
+                    json_object=json_object)
     if truncated:
         log.warning("%s hit the token limit; output may be cut", model)
     return txt

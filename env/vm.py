@@ -193,6 +193,15 @@ class VM:
             log.warning("run_command failed: %s", e)
             return (f"[channel error: {type(e).__name__} — the machine did not "
                     "answer; this is NOT command output and proves nothing]")
+        # The guest API reports shell signal termination as HTTP 200/success.
+        # Its negative returncode is transport evidence, not model stdout. A
+        # killed outer shell can lose the output envelope after code has run.
+        returncode = d.get("returncode")
+        if isinstance(returncode, int) and returncode < 0:
+            marker = (f"[channel error: guest execute terminated by signal {-returncode}; "
+                      "output may be incomplete; program execution may have occurred]")
+            log.warning("guest execute terminated by signal %s", -returncode)
+            out = marker + ("\n" + out if out else "")
         m = re.search(r"conda activate (\S+)", command)   # remember for subsequent commands
         if m:
             self._conda = m.group(1)
@@ -374,15 +383,18 @@ class VM:
                 timed_out=True,
                 context_stdout=(prefix + partial_context
                                 if partial_context is not None else None))
-        # Infrastructure sentinels are emitted only by the trusted wrapper before
-        # the base64 Program-output envelope. In a full-observation Verifier the
+        # Infrastructure sentinels are emitted outside the base64 Program-output
+        # envelope. The guest API appends wrapper stderr after stdout, so inspect
+        # both the prefix and suffix. In a full-observation Verifier the
         # model can legitimately inspect the wrapper process itself, whose command
         # line contains those same literal sentinel strings. Never classify bytes
         # decoded from model Program output as transport state.
-        transport_preamble = out.partition(_RUN_OUTPUT_B64_PREFIX)[0]
+        transport_preamble = re.sub(
+            re.escape(_RUN_OUTPUT_B64_PREFIX) + r"[A-Za-z0-9+/=]*\n", "", out)
         out, context_out = _decode_run_output_envelopes(out)
         fallback_used = _STAGING_FALLBACK in transport_preamble
-        if fallback_used and not self._staging_fallback_reported:
+        if (fallback_used or "Read-only file system" in transport_preamble) \
+                and not self._staging_fallback_reported:
             # run_command does not stage through /tmp, so it remains usable for a
             # read-only postmortem. Capture this once before the VM is torn down.
             diagnostic = self.run_command(
@@ -395,7 +407,7 @@ class VM:
                 "echo 'kernel warnings:'; dmesg --level=err,warn 2>&1 | tail -40",
                 timeout=30, cap=8000)
             self._staging_fallback_reported = True
-            log.warning("guest /tmp unavailable; Program staged through /dev/shm")
+            log.warning("guest filesystem staging fault; fallback used=%s", fallback_used)
             marker = re.search(r"\[exit \d+\]\s*$", out)
             report = "\n[HARNESS FILESYSTEM DIAGNOSTIC]\n" + diagnostic + "\n"
             if marker:

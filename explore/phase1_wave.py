@@ -20,6 +20,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import shutil
 from typing import Any, Callable
 
 from core.actor import PLAIN_JSON_TRANSPORT_NOTE
@@ -326,8 +327,12 @@ def _capture_wave_fixtures(
             "echo PHASE1_WAVE_STAGE_RC=$?")
         out = vm.run_command(command, timeout=120) or ""
         if "PHASE1_WAVE_STAGE_RC=0" not in out:
+            _atomic_text(episode_dir / "fixture_stage_failure.txt", out)
+            # Host-owned copy is idempotent; no model action is replayed.
+            out = vm.run_command(command, timeout=120) or ""
+        if "PHASE1_WAVE_STAGE_RC=0" not in out:
             raise E15InfrastructureError(
-                f"could not stage Curriculum fixture {project.project_id}")
+                f"could not stage Curriculum fixture {project.project_id}: {out[-1000:]}")
         fixture_dir = episode_dir / "fixtures"
         _capture_owned_tree(
             hooks, vm, f"phase1-project-{project_index:03d}",
@@ -444,6 +449,48 @@ def _execute_branch(
         if desktop is not None:
             desktop.close()
         raise
+
+
+def _execute_branch_with_infra_retry(**kwargs) -> _BranchRuntime:
+    """One bounded clean retry for broken machines before a terminal verdict.
+
+    Candidate state cannot be faithfully resumed after a failed guest filesystem.
+    Archive that unscored attempt and restart from the same immutable fixtures.
+    Completed verdicts, memory work, and boundary violations are never retried.
+    """
+    episode = kwargs["episode_dir"]
+    try:
+        return _execute_branch(**kwargs)
+    except E15BoundaryError:
+        raise
+    except Exception as exc:
+        if (episode / "handoffs/verifier_001.md").exists():
+            raise
+        physical = isinstance(exc, (TimeoutError, ConnectionError)) or any(
+            marker in str(exc) for marker in (
+                "fresh VM boundary failed", "Read timed out", "port_allocation"))
+        for trace in episode.glob("**/trace_meta.json"):
+            if "infra_attempts" in trace.parts:
+                continue
+            metadata = json.loads(trace.read_text())
+            output = trace.with_name("trace.txt")
+            if metadata.get("infra_fail") and output.is_file():
+                text = output.read_text(errors="replace").lower()
+                physical |= any(marker in text for marker in (
+                    "read-only file system", "channel error",
+                    "rollback-mirror setup failed"))
+        if not physical:
+            raise
+        archive = episode / "infra_attempts/attempt_001"
+        archive.mkdir(parents=True, exist_ok=False)
+        for path in list(episode.iterdir()):
+            if path.name not in {"fixtures", "project.md", "infra_attempts"}:
+                shutil.move(str(path), archive / path.name)
+        _atomic_json(archive / "retry_receipt.json", {
+            "reason": f"{type(exc).__name__}: {exc}",
+            "mode": "restart_unscored_branch_from_immutable_fixtures",
+            "prior_memory_promoted": False, "maximum_retries": 1})
+    return _execute_branch(**kwargs)
 
 
 def _memory_changes(before: dict[str, bytes], after: dict[str, bytes]) \
@@ -614,13 +661,21 @@ def evolve_parallel_phase1(
     curriculum_history: list[dict[str, Any]] = []
     previous_wave_outcomes = ""
     if resume_completed_boundary:
-        # Validate before entering the exception-to-state writer. An inadmissible
-        # resume must not overwrite a preserved lineage with zero project counts.
-        project_index, wave_index, curriculum_history, previous_wave_outcomes = \
-            _resume_completed_waves(
-                lineage, target_direction=target_direction,
-                project_budget=project_budget, checkpoint_projects=checkpoint_projects,
-                max_parallel=max_parallel, target_query_conditioned=target_query_conditioned)
+        from explore.phase1_boundary_recovery import validate_boundary, archive_pending
+        plan = validate_boundary(
+            lineage, target_direction, project_budget=project_budget,
+            checkpoint_projects=checkpoint_projects, max_parallel=max_parallel,
+            target_query_conditioned=target_query_conditioned)
+        if plan["state"]["status"] == "quarantined":
+            # Recheck the exact original agent surfaces with the repaired audit.
+            # A real boundary violation can never become a resume candidate.
+            for transcript in lineage.glob("**/transcript.json"):
+                if "boundary_recovery" not in transcript.parts:
+                    _audit_agent_artifacts(hooks, str(transcript.parent), target_direction)
+        archive_pending(lineage, plan)
+        project_index, wave_index = plan["projects"], plan["wave"]
+        curriculum_history = plan["history"]
+        previous_wave_outcomes = plan["outcomes"]
 
     def emit(event_type: str, **payload: Any) -> None:
         if event_sink is not None:
@@ -718,12 +773,13 @@ def evolve_parallel_phase1(
                 memory_manifest=_manifest(wave_memory),
                 max_parallel=max_parallel)
             completed: dict[int, _BranchRuntime] = {}
+            branch_errors: list[Exception] = []
             with ThreadPoolExecutor(
                     max_workers=min(max_parallel, len(assignments)),
                     thread_name_prefix=f"phase1-wave-{wave_index}") as pool:
                 futures = {
                     pool.submit(
-                        _execute_branch, vm_factory=vm_factory, hooks=hooks,
+                        _execute_branch_with_infra_retry, vm_factory=vm_factory, hooks=hooks,
                         project_index=index, project=project,
                         episode_dir=episode_dir,
                         wave_memory_dir=wave_memory_dir,
@@ -734,7 +790,20 @@ def evolve_parallel_phase1(
                     for index, project, episode_dir in assignments
                 }
                 for future in as_completed(futures):
-                    branch = future.result()
+                    try:
+                        branch = future.result()
+                    except Exception as exc:
+                        branch_errors.append(exc)
+                        # Persist immediately: a productive sibling can take
+                        # hours to finish after this future has already failed.
+                        # This event does not commit memory or decide a verdict.
+                        emit(
+                            "PHASE1_BRANCH_EXCEPTION", wave=wave_index,
+                            project=futures[future],
+                            error_type=type(exc).__name__, error=str(exc),
+                            classification=("boundary" if isinstance(
+                                exc, E15BoundaryError) else "infra"))
+                        continue
                     completed[branch.project_index] = branch
                     active_branches.append(branch)
                     emit(
@@ -742,6 +811,14 @@ def evolve_parallel_phase1(
                         project=branch.project_index,
                         project_id=branch.project.project_id,
                         terminal_outcome=branch.terminal_outcome)
+
+            # Drain every future so successful siblings retain an owned handle
+            # for cleanup even when another branch fails. Never commit a partial
+            # wave merely because the failing future happened to return first.
+            if branch_errors:
+                boundary = next((e for e in branch_errors
+                                 if isinstance(e, E15BoundaryError)), None)
+                raise boundary or branch_errors[0]
 
             rendered_outcomes: list[str] = []
             for index, _project, _episode_dir in assignments:

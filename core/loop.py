@@ -982,6 +982,12 @@ def run_attempt(instruction: str, vm, cfg, sink, iters_budget: int = None,
         sent_user = (user_message_transform(user)
                      if user_message_transform is not None else user)
         sent_image = image
+        transport_options = {}
+        if dry and os.environ.get("FORGE_JSON_ACTION_RETRY") == "1":
+            # Formatting retry: preserve model, sampling, context and parser.
+            # Enable only after checking the route's response_format support.
+            transport_options["json_object"] = True
+            log.info("retrying unparseable action with JSON object response format")
         out = _llm_operation(
             "Actor Agent",
             lambda: chat(
@@ -991,6 +997,7 @@ def run_attempt(instruction: str, vm, cfg, sink, iters_budget: int = None,
                 history=ctx,
                 image=sent_image,
                 reasoning_max_tokens=getattr(cfg, "reasoning_max_tokens", 0),
+                **transport_options,
                 **_provider_request(cfg)))                      # dry retry -> temp bump: at temp 0 a
         image = None                               # degenerated decoder re-samples the
         #                                            SAME dry output forever (the ~25%

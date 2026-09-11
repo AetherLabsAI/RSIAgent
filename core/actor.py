@@ -696,6 +696,17 @@ def parse_turn(text: str):
     #                                                       leak artifacts (decoder
     #                                                       degeneration residue)
     objs = [v for v in json_values(text) if isinstance(v, dict)]
+    # These API-style envelopes are not the plain JSON action channel. Silently
+    # ignoring them can select a trailing Done from a simulated tool transcript,
+    # even though its purported programs/results never reached the executor.
+    # Keep the reply unparsed so the existing formatting retry can ask for one
+    # real action. Recognize the envelope independently of its invented tool
+    # name (for example python, terminal, or a provider-specific namespace).
+    # Do not execute or reinterpret the claimed tool results.
+    if any(isinstance(obj.get("name"), str)
+           and obj["name"].strip()
+           and isinstance(obj.get("arguments"), (dict, str)) for obj in objs):
+        return None
     objs.extend(_native_tool_objects(text))
     program, look, ask, done = None, None, None, None
     n_programs = n_looks = n_asks = n_dones = 0

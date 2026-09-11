@@ -140,6 +140,44 @@ def test_effect_sandbox_accepts_ready_token_preserved_outside_binary_context():
     assert "PROGRAM OUTPUT EXTERNALIZED" in trace.context_stdout
 
 
+@pytest.mark.parametrize("mode", ["effect", "rollback"])
+@pytest.mark.parametrize("exit_code", [0, 7])
+def test_model_stdout_truncation_cannot_erase_trusted_readiness(
+        tmp_path, mode, exit_code):
+    """Execute generated output plumbing against a real regular-file sink."""
+    import shlex
+    import sys
+    from core.verifier_runtime import AgenticVerifierExecutor
+    vm = _RecordingVM()
+    executor = AgenticVerifierExecutor(vm)
+    executor("python", "pass")
+    if mode == "rollback":
+        executor._run_rollback_mirror("python3", "py", "pass", 60)
+    wrapper = vm.scripts[-1]["code"]
+    # Replace only the privilege drop/guest command; execute the actual
+    # generated pipe and shell error behavior without requiring portable sudo.
+    pipeline = re.search(r"    set -o pipefail\n(.*?)\n  ' forge-verifier",
+                         wrapper, re.S).group(0).split("\n  ' forge-verifier")[0]
+    program = tmp_path / "truncate.py"
+    program.write_text(
+        "import os,sys\n"
+        "os.write(1,b'before\\n')\n"
+        "open('/dev/stdout','w').close()\n"
+        "open('/dev/stderr','w').close()\n"
+        "os.write(1,b'after\\x00\\xff\\n')\n"
+        f"sys.exit({exit_code})\n")
+    pipeline = re.sub(r'exec setpriv .*?"\$4" "\$6"',
+        'exec ' + shlex.quote(sys.executable) + ' ' + shlex.quote(str(program)),
+        pipeline, flags=re.S)
+    sink = tmp_path / "output"
+    with sink.open("wb") as output:
+        result = subprocess.run(["bash", "-c",
+            'set -- unused "$(id -u)" "$(id -g)" unused READY unused\n' + pipeline],
+                                stdout=output, stderr=subprocess.STDOUT)
+    assert result.returncode == exit_code
+    assert sink.read_bytes() == b"READY\nbefore\nafter\x00\xff\n"
+
+
 def test_agentic_executor_remains_compatible_with_already_loaded_legacy_vm():
     from core.verifier_runtime import AgenticVerifierExecutor
 

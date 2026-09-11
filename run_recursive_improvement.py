@@ -380,12 +380,12 @@ def _configure_phase3_evaluator(
     return sealed
 
 
-def execute_phase1(spec: dict[str, Any]) -> dict[str, Any]:
+def execute_phase1(spec: dict[str, Any], *, resume_completed_boundary=False) -> dict[str, Any]:
     resolved = spec["_resolved"]
     run_root: Path = resolved["run_root"]
     _ensure_no_later_phase(run_root, "phase1")
     phase1_result = run_root / "phase1/result.json"
-    if phase1_result.is_file():
+    if phase1_result.is_file() and not resume_completed_boundary:
         result = _read_object(phase1_result)
         if result.get("status") not in {"saturated", "budget_exhausted"}:
             raise ProtocolError("existing Phase-1 result is not transition-ready")
@@ -411,6 +411,8 @@ def execute_phase1(spec: dict[str, Any]) -> dict[str, Any]:
         ]
     if resolved["study_design"] == "target_conditioned_adaptation":
         command.insert(-2, "--target-query-conditioned")
+    if resume_completed_boundary:
+        command.insert(-2, "--resume-completed-boundary")
     _run(command, run_root=run_root, phase="phase1")
     result = _read_object(phase1_result)
     if result.get("official_evaluator_calls") != 0:
@@ -706,6 +708,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--protocol", required=True)
     parser.add_argument("--phase", choices=("phase1", "phase2", "phase3"),
                         required=True)
+    parser.add_argument("--resume-completed-boundary", action="store_true")
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--preflight", action="store_true")
     action.add_argument("--execute", default="")
@@ -714,6 +717,8 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.resume_completed_boundary and args.phase != "phase1":
+        raise ProtocolError("--resume-completed-boundary requires phase1")
     protocol_path = Path(args.protocol).expanduser().resolve(strict=True)
     spec = load_protocol(protocol_path)
     report = preflight(spec, args.phase)
@@ -741,11 +746,13 @@ def main(argv: list[str] | None = None) -> int:
         _write_json_atomic(lock_path, expected_lock)
     _append_event(run_root, "PHASE_STARTED", phase=args.phase,
                   protocol_sha256=hashlib.sha256(source_bytes).hexdigest())
-    result = {
+    runner = {
         "phase1": execute_phase1,
         "phase2": execute_phase2,
         "phase3": execute_phase3,
-    }[args.phase](spec)
+    }[args.phase]
+    result = (runner(spec, resume_completed_boundary=True)
+              if args.resume_completed_boundary else runner(spec))
     _append_event(run_root, "PHASE_COMPLETED", phase=args.phase,
                   status=result.get("status"))
     print("\n=== RECURSIVE IMPROVEMENT " + args.phase.upper() + " "

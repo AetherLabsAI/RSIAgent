@@ -479,7 +479,7 @@ def _parser() -> argparse.ArgumentParser:
     from core.self_evolving_loop import Phase2StopPolicy
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("task_id", choices=VALID_TASKS)
+    parser.add_argument("task_id", choices=ALL_TASKS)
     parser.add_argument("--seed", type=int, default=5301)
     parser.add_argument("--tag", default="glm53_k3_self_evolving_v1")
     parser.add_argument(
@@ -569,6 +569,8 @@ def main(argv: list[str] | None = None, *, recovery_plan=None) -> int:
     lock = None
     if not args.phase2_training:
         lock = _validate_lock(lock_path, configs, config_paths)
+        if args.task_id not in VALID_TASKS:
+            raise RuntimeError("task is excluded by the legacy benchmark lock")
         if args.seed != int(lock["seed_label"]) or args.tag != str(lock["tag"]):
             raise RuntimeError("seed/tag differ from the frozen benchmark lock")
 
@@ -586,6 +588,9 @@ def main(argv: list[str] | None = None, *, recovery_plan=None) -> int:
         args.benchmark_profile, forge_root=FORGE_ROOT)
     benchmark_provenance = _benchmark_provenance(
         args.task_id, task_class_path, profile_path)
+    if (args.task_id in EXCLUDED_TASKS and benchmark_provenance["task_release"]
+            != "osworld-v2-2026.08.08"):
+        raise RuntimeError("task is excluded by the selected benchmark release")
     target_cfg = configs["target_actor"]
     practice_agentic_control_cfg = _practice_agentic_control_config(
         target_cfg, config_paths["practice_verifier"])

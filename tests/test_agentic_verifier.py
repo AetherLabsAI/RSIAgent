@@ -35,6 +35,80 @@ VERDICT: PASS
     assert V._parse_agentic_verifier_report("no token") is None
 
 
+@pytest.mark.parametrize("mode", ["binary", "evidence", "route"])
+def test_recurrent_replay_rehydrates_authority_until_an_action_anchors_it(
+        monkeypatch, tmp_path, mode):
+    """The first real action can follow a dry reply to the task opening."""
+    monkeypatch.setattr("config.settings.load", lambda _path: _verifier_cfg())
+    task = "Preserve unrelated appointments. Move only the named review to Tuesday."
+    context = "Candidate: /candidate. Frozen original: /original."
+    calls = []
+    action = '{"program":{"lang":"bash","code":"cat /candidate"}}'
+    dry = "I will inspect the candidate."
+    observation = "Exact independent probe result: original value is unchanged."
+
+    def fake_run_attempt(prompt, _vm, cfg, sink, **kwargs):
+        history = list(kwargs.get("initial_history") or [])
+        calls.append((prompt, list(history)))
+        if len(calls) == 1:
+            history += [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": dry},
+                {"role": "user", "content": "Emit one real action now."},
+                {"role": "assistant", "content": action},
+                {"role": "user", "content": observation},
+                {"role": "assistant", "content": dry},
+            ]
+        elif len(calls) == 2:
+            # This repeated dry response activates semantic replay, which removes
+            # the first user/dry-assistant pair containing the authority envelope.
+            history += [{"role": "user", "content": prompt},
+                        {"role": "assistant", "content": dry}]
+        else:
+            assert task in prompt
+            assert context in prompt
+            assert "AUTHORITATIVE TASK — verbatim" in prompt
+            assert observation in prompt
+            assert [m["content"] for m in history
+                    if m["role"] == "assistant"] == [action]
+            assert kwargs["continue_context"] is True
+            if len(calls) == 3:
+                # Another dry segment must not mark the restored opening as
+                # anchored until a real action includes it in the checkpoint.
+                history += [{"role": "user", "content": prompt},
+                            {"role": "assistant", "content": dry}]
+            else:
+                report = ("Independent findings.\nROUTE: HANDOFF\n"
+                          if mode == "route" else
+                          "Independent findings.\nVERDICT: PASS\n")
+                kwargs["program_executor"]("verifier-report", report)
+                assert kwargs["terminal_handoff_ready"]()
+                history += [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content":
+                     '{"program":{"lang":"verifier-report","code":"publish"}}'},
+                ]
+                sink.save_transcript("system", history)
+                return SimpleNamespace(status="done"), history
+        sink.save_transcript("system", history)
+        return SimpleNamespace(status="stalled"), history
+
+    monkeypatch.setattr(L, "run_attempt", fake_run_attempt)
+    control = SimpleNamespace(
+        agentic_verifier_config="verifier.yaml",
+        verifier_evolve_route=mode == "route",
+        verifier_unverified_evidence=mode == "evidence")
+    verdict, _ = V.verify_agentic(
+        task, _VM(), control, context=context,
+        sink=ArtifactSink(str(tmp_path / "run")),
+        session=V.VerifierSession(), wall_budget=50)
+    assert verdict == "pass" and len(calls) == 4
+    recovery = json.loads((tmp_path / "run" / "verifier_agent" /
+                           "inspection_001" / "segment_001" /
+                           "recovery.json").read_text())
+    assert recovery["semantic_replay_activated"] is True
+
+
 def test_unverified_verdict_is_configured_transport_not_legacy_alias():
     report = "# Evidence gap\nVERDICT: UNVERIFIED\n"
     assert V._parse_agentic_verifier_report(report) is None

@@ -1,0 +1,295 @@
+diff --git a/explore/e15_loop.py b/explore/e15_loop.py
+index e4c0d7c..c503af9 100644
+--- a/explore/e15_loop.py
++++ b/explore/e15_loop.py
+@@ -460,6 +460,28 @@ def _phase_cfg(base_cfg, required_path: str = ""):
+     return cfg
+ 
+ 
++def _remaining_phase_budget(cfg, *, used_iters: int, used_wall: float,
++                            role: str, sink_root: str,
++                            curriculum_actionless: int | None = None) -> dict:
++    """Keep configured emergency limits across one same-context phase."""
++    if (used_iters >= cfg.max_iters or used_wall >= cfg.wall_clock_secs
++            or (curriculum_actionless is not None
++                and curriculum_actionless >= 3)):
++        record = {"status": "infra", "iters": used_iters,
++                  "wall_secs": used_wall, "role": role,
++                  "max_iters": cfg.max_iters,
++                  "max_wall_secs": cfg.wall_clock_secs}
++        if curriculum_actionless is not None:
++            record["actionless_segments"] = curriculum_actionless
++        _atomic_json(Path(sink_root) / "transport_state.json", record)
++        label = "Curriculum" if curriculum_actionless is not None else role
++        raise E15InfrastructureError(
++            f"{label} exhausted its cumulative transport/liveness "
++            "ceiling; this is not a convergence decision")
++    return {"iters_budget": cfg.max_iters - used_iters,
++            "wall_budget": cfg.wall_clock_secs - used_wall}
++
++
+ def _curriculum_runtime_contract() -> str:
+     return f"""
+ 
+@@ -527,9 +549,9 @@ def _continue_after_incomplete_curriculum(path: str) -> str:
+ 
+ The previous segment stalled or exhausted its transport budget before you
+ declared the phase complete. It was not accepted as a Curriculum decision.
+-Any draft handoff at {path} and incomplete fixture tree at {PROJECT_ROOT} were
+-discarded. Continue your investigation in the same context. Recreate the
+-fixture tree and publish the terminal handoff only when you judge the complete
++The stale handoff at {path} was cleared. Your draft fixtures at {PROJECT_ROOT}
++remain on the same machine. Continue your investigation in the same context.
++Complete the fixture tree and publish the handoff only when you judge the complete
+ project decision ready, then declare done.
+ 
+ {PLAIN_JSON_TRANSPORT_NOTE}"""
+@@ -568,6 +590,9 @@ def _run_handoff_phase(
+     current_prompt = prompt
+     continuing = continuation or bool(current_history)
+     segment = 0
++    used_iters = 0
++    used_wall = 0.0
++    actionless_segments = 0
+     while True:
+         _remove_guest_file(vm, handoff_path)
+         _audit_prompt(hooks, current_prompt, target, mode=audit_mode)
+@@ -576,6 +601,13 @@ def _run_handoff_phase(
+             segment += 1
+             sink_dir = os.path.join(sink_root, f"segment_{segment:03d}")
+         phase_cfg = _phase_cfg(cfg, handoff_path)
++        if require_completed_publication:
++            phase_cfg.system_extra += "\n\n" + PLAIN_JSON_TRANSPORT_NOTE
++        attempt_options = _remaining_phase_budget(
++            phase_cfg, used_iters=used_iters, used_wall=used_wall,
++            role=role, sink_root=sink_root,
++            curriculum_actionless=(actionless_segments
++                                   if require_completed_publication else None))
+         terminal_probe = None
+         if commit_on_publish:
+             terminal_probe = lambda: handoff_parser(
+@@ -585,7 +617,14 @@ def _run_handoff_phase(
+             current_prompt, vm, phase_cfg, hooks.sink_factory(sink_dir),
+             initial_history=current_history,
+             continue_context=continuing,
++            **attempt_options,
+             terminal_handoff_ready=terminal_probe)
++        used_iters += getattr(result, "iters", 0)
++        used_wall += getattr(result, "wall_secs", 0.0)
++        if require_completed_publication:
++            actionless_segments = (
++                0 if getattr(result, "programs_run", 0)
++                or getattr(result, "looks", 0) else actionless_segments + 1)
+         _audit_agent_artifacts(
+             hooks, sink_dir, target, mode=audit_mode)
+         status = str(getattr(result, "status", "infra"))
+@@ -609,10 +648,9 @@ def _run_handoff_phase(
+             # Curriculum may draft its handoff before the fixture is actually
+             # ready. Unlike an atomically published Verifier verdict, that
+             # draft cannot commit a lifecycle transition unless the Agent also
+-            # completed its segment. Retry in the same model context from a
+-            # clean publication workspace.
++            # completed its segment. Invalidate only the publication; preserve
++            # the in-progress fixtures across same-context continuations.
+             _remove_guest_file(vm, handoff_path)
+-            _remove_incomplete_curriculum_project(vm)
+         if status == "done":
+             current_prompt = _continuation_after_transport(
+                 role, handoff_path,
+@@ -635,21 +673,29 @@ def _run_free_phase(
+         sink_root: str, target: str, history: list[dict[str, Any]],
+         required_path: str = "", audit_mode: str = "practice") \
+         -> tuple[list[dict[str, Any]], Any]:
+-    """Run an uncapped same-context phase whose only terminal is Agent done."""
++    """Run until Agent done, retaining configured emergency watchdogs."""
+ 
+     current_history = list(history)
+     current_prompt = prompt
+     segment = 0
++    used_iters = 0
++    used_wall = 0.0
+     while True:
+         _audit_prompt(hooks, current_prompt, target, mode=audit_mode)
+         sink_dir = os.path.join(sink_root, f"segment_{segment:03d}")
+         while os.path.exists(sink_dir):
+             segment += 1
+             sink_dir = os.path.join(sink_root, f"segment_{segment:03d}")
++        phase_cfg = _phase_cfg(cfg, required_path)
++        attempt_options = _remaining_phase_budget(
++            phase_cfg, used_iters=used_iters, used_wall=used_wall,
++            role=role, sink_root=sink_root)
+         result, current_history = hooks.run_attempt(
+-            current_prompt, vm, _phase_cfg(cfg, required_path),
++            current_prompt, vm, phase_cfg,
+             hooks.sink_factory(sink_dir), initial_history=current_history,
+-            continue_context=True, allow_noop_done=True)
++            continue_context=True, allow_noop_done=True, **attempt_options)
++        used_iters += getattr(result, "iters", 0)
++        used_wall += getattr(result, "wall_secs", 0.0)
+         _audit_agent_artifacts(
+             hooks, sink_dir, target, mode=audit_mode)
+         status = str(getattr(result, "status", "infra"))
+diff --git a/tests/test_e15_loop.py b/tests/test_e15_loop.py
+index cbd23a2..ef84f32 100644
+--- a/tests/test_e15_loop.py
++++ b/tests/test_e15_loop.py
+@@ -442,7 +442,8 @@ def cfg():
+     return SimpleNamespace(
+         practice_mode=False, independent_verify=True,
+         agent_decided_stop=False, practice_done_requires="",
+-        history_keep_pairs=80, max_resumes=3)
++        history_keep_pairs=80, max_resumes=3,
++        max_iters=2000, wall_clock_secs=86400)
+ 
+ 
+ def project_step(name, project, tree, status="done", check=None):
+diff --git a/tests/test_phase_emergency_budget.py b/tests/test_phase_emergency_budget.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_phase_emergency_budget.py
+@@ -0,0 +1,145 @@
++import json
++import re
++from types import SimpleNamespace
++
++import pytest
++
++from config.settings import Config
++from explore import e15_loop as loop
++
++
++def run_phase(tmp_path, monkeypatch, kind, steps, *, max_iters=20, wall=60):
++    calls = []
++    guest = {"handoff": ""}
++    monkeypatch.setattr(loop, "_remove_guest_file", lambda *a: None)
++
++    def attempt(prompt, vm, cfg, sink, **kwargs):
++        index = len(calls)
++        assert index < len(steps), "started another segment after the watchdog"
++        calls.append(kwargs)
++        step = steps[index]
++        if step.get("publish"):
++            guest["handoff"] = "READY"
++        history = kwargs["initial_history"] + [
++            {"role": "assistant", "content": f"segment {index}"}]
++        return SimpleNamespace(
++            status=step.get("status", "stalled"),
++            iters=step.get("iters", 1), wall_secs=step.get("wall", 1),
++            programs_run=step.get("programs", 0), looks=0,
++            infra_pause_secs=step.get("pause", 0)), history
++
++    hooks = loop.E15Hooks(
++        run_attempt=attempt, audit_text=lambda *a, **k: [],
++        audit_transcripts=lambda *a, **k: [],
++        read_guest_text=lambda *a: guest["handoff"])
++    options = dict(hooks=hooks, vm=object(),
++                   cfg=Config(max_iters=max_iters, wall_clock_secs=wall),
++                   prompt="public instruction", role="ACTOR",
++                   sink_root=str(tmp_path), target="public instruction",
++                   history=[])
++
++    def run():
++        if kind == "free":
++            return loop._run_free_phase(**options)
++        return loop._run_handoff_phase(
++            **options, handoff_path="/home/user/handoff.md",
++            token_pattern=re.compile("READY"),
++            handoff_parser=lambda text, _: (
++                loop.ParsedHandoff("READY", text, text) if text else None))
++
++    return calls, run
++
++
++@pytest.mark.parametrize("kind", ["handoff", "free"])
++def test_stalled_segments_share_configured_iteration_watchdog(
++        tmp_path, monkeypatch, kind):
++    calls, run = run_phase(tmp_path, monkeypatch, kind,
++                          [{"iters": 3}, {"iters": 2}], max_iters=5)
++    with pytest.raises(loop.E15InfrastructureError,
++                       match="not a convergence decision"):
++        run()
++    assert [c["iters_budget"] for c in calls] == [5, 2]
++    assert calls[1]["initial_history"] == [
++        {"role": "assistant", "content": "segment 0"}]
++    state = json.loads((tmp_path / "transport_state.json").read_text())
++    assert state["status"] == "infra" and state["iters"] == 5
++
++
++@pytest.mark.parametrize("kind", ["handoff", "free"])
++def test_stalled_segments_share_configured_work_clock(
++        tmp_path, monkeypatch, kind):
++    calls, run = run_phase(tmp_path, monkeypatch, kind,
++                          [{"wall": 2, "pause": 500}, {"wall": 1}], wall=3)
++    with pytest.raises(loop.E15InfrastructureError,
++                       match="not a convergence decision"):
++        run()
++    assert [c["wall_budget"] for c in calls] == [3, 1]
++    state = json.loads((tmp_path / "transport_state.json").read_text())
++    assert state["wall_secs"] == 3
++
++
++@pytest.mark.parametrize("kind", ["handoff", "free"])
++def test_actor_has_no_new_actionless_segment_limit(tmp_path, monkeypatch, kind):
++    steps = [{} for _ in range(4)] + [{"status": "done", "publish": True}]
++    calls, run = run_phase(tmp_path, monkeypatch, kind, steps)
++    run()
++    assert len(calls) == 5
++    assert [c["iters_budget"] for c in calls] == [20, 19, 18, 17, 16]
++    assert not (tmp_path / "transport_state.json").exists()
++
++
++@pytest.mark.parametrize("kind", ["handoff", "free"])
++def test_valid_completion_at_watchdog_boundary_is_preserved(
++        tmp_path, monkeypatch, kind):
++    # A canonical handoff can coincide with a segment stall; it already wins
++    # over the status in the release protocol and must still do so here.
++    status = "stalled" if kind == "handoff" else "done"
++    calls, run = run_phase(
++        tmp_path, monkeypatch, kind,
++        [{"iters": 2}, {"iters": 1, "status": status, "publish": True}],
++        max_iters=3)
++    run()
++    assert [c["iters_budget"] for c in calls] == [3, 1]
++    assert not (tmp_path / "transport_state.json").exists()
++
++
++@pytest.mark.parametrize("kind", ["handoff", "free"])
++def test_progress_does_not_reset_the_existing_emergency_budget(
++        tmp_path, monkeypatch, kind):
++    calls, run = run_phase(
++        tmp_path, monkeypatch, kind,
++        [{"iters": 3, "programs": 2}, {"iters": 2, "programs": 1}],
++        max_iters=5)
++    with pytest.raises(loop.E15InfrastructureError):
++        run()
++    assert [c["iters_budget"] for c in calls] == [5, 2]
++
++
++def test_curriculum_retry_preserves_draft_and_consumes_cumulative_budget(tmp_path, monkeypatch):
++    import re
++    from config.settings import Config
++    from core.loop import LoopResult
++    from explore import e15_loop as loop
++    guest = {"handoff": "", "draft": "expensive original inputs"}
++    calls = []
++    monkeypatch.setattr(loop, "_remove_guest_file", lambda *a: guest.update(handoff=""))
++    monkeypatch.setattr(loop, "_remove_incomplete_curriculum_project", lambda *a: pytest.fail("erased draft"))
++    def attempt(prompt, vm, cfg, sink, **kw):
++        calls.append(kw)
++        if len(calls) == 2:
++            assert guest["draft"] == "expensive original inputs"
++            assert kw["iters_budget"] == 19 and kw["wall_budget"] == 58
++            guest["handoff"] = "ready"
++        return LoopResult(status="done" if len(calls) == 2 else "stalled",
++                          iters=1, programs_run=1, wall_secs=2), []
++    hooks = loop.E15Hooks(run_attempt=attempt, audit_text=lambda *a, **k: [],
++                         audit_transcripts=lambda *a, **k: [],
++                         read_guest_text=lambda *a: guest["handoff"])
++    parsed, _, _ = loop._run_handoff_phase(
++        hooks=hooks, vm=object(), cfg=Config(max_iters=20, wall_clock_secs=60),
++        prompt="public instruction", role="CURRICULUM", handoff_path="handoff",
++        token_pattern=re.compile(".*"), sink_root=str(tmp_path / "curriculum"),
++        target="public instruction", require_completed_publication=True,
++        handoff_parser=lambda text, _: loop.ParsedHandoff("PROJECT", text, text) if text else None)
++    assert parsed.token == "PROJECT" and len(calls) == 2
++

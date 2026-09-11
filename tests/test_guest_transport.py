@@ -332,6 +332,34 @@ def test_program_output_cannot_forge_a_transport_failure(monkeypatch):
     assert program_output in trace.stdout
 
 
+def test_staging_stderr_after_output_envelope_captures_diagnostics(monkeypatch):
+    """The guest API returns wrapper stderr separately, after stdout's envelope."""
+    vm = ForgeVM(SimpleNamespace(controller=SimpleNamespace(http_server="http://guest")))
+    calls = []
+
+    def fake_post(_url, *, json, timeout):
+        calls.append(json["command"])
+        if "findmnt -T /home/user" in json["command"]:
+            data = {"output": "mount state:\n/ /dev/sda3 ext4 ro,relatime\n"}
+        else:
+            data = {
+                "output": "FORGE_RUN_OUTPUT_BASE64:\n[exit 2]\n",
+                "error": "mktemp: /tmp/forge_XXXXXX.sh: Read-only file system\n",
+            }
+        return SimpleNamespace(status_code=200, json=lambda: data)
+
+    monkeypatch.setattr("env.vm.requests.post", fake_post)
+    trace = vm.run_script("bash", "printf never-executed")
+
+    assert trace.infra_fail is True
+    assert "HARNESS FILESYSTEM DIAGNOSTIC" in trace.stdout
+    assert "/ /dev/sda3 ext4 ro,relatime" in trace.stdout
+    assert len(calls) == 2
+    repeated = vm.run_script("bash", "printf still-not-executed")
+    assert repeated.infra_fail is True
+    assert len(calls) == 3  # Diagnose once per VM; never replay the action.
+
+
 def test_http_timeout_recovers_only_its_unique_partial_log(monkeypatch):
     vm = ForgeVM(SimpleNamespace())
     calls = []

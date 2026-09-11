@@ -1168,6 +1168,11 @@ def verify_agentic(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
                     pending_turn = replay_turn or pending_turn
                     semantic_replay_active = True
                     semantic_replay_activated = True
+                    # The first real action may have followed a dry reply to the
+                    # opening. Replay then drops that authority-bearing pair.
+                    # Re-present the unchanged inspection envelope until a real
+                    # action anchors it in the recovered history again.
+                    inspection_anchored = False
                     log.warning(
                         "recurring actionless verifier transport -> semantic replay "
                         "(%d -> %d pairs; all actions/results preserved)",

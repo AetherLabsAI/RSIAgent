@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import os
+import pathlib
 import posixpath
 import re
 import secrets
@@ -402,6 +403,14 @@ class AgenticVerifierExecutor:
     def clear_published_report(self):
         self.published_report = ""
 
+    def _run_harness_script(self, lang, code, *, timeout, cap):
+        control = getattr(getattr(self._vm, "env", None),
+                          "_forge_verifier_control", None)
+        if control is not None:
+            return control.run_script(lang, code, timeout=timeout, cap=cap)
+        return _run_script_with_staging_fallback(
+            self._vm, lang, code, timeout=timeout, cap=cap)
+
     def set_report_validator(self, validator, expectation):
         """Configure lexical host-channel validation for the active Agent stage."""
         self._report_validator = validator
@@ -441,8 +450,9 @@ class AgenticVerifierExecutor:
         ready = self._ensure_workspace(timeout=min(max(int(timeout), 30), 180))
         if ready is not None:
             return ready
-        return self._run_isolated(
+        result = self._run_isolated(
             interpreter, extension, code or "", timeout=max(1, int(timeout)))
+        return result
 
     def _ensure_workspace(self, timeout):
         if self._closed:
@@ -514,8 +524,8 @@ status_path={status_path!r}
 log_path={log_path!r}
 keeper_payload={keeper_b64!r}
 sudo_password_b64={self._sudo_password_b64!r}
-uid_value=$(id -u)
-gid_value=$(id -g)
+uid_value=$(id -u user)
+gid_value=$(id -g user)
 run_privileged() {{
   printf %s "$sudo_password_b64" | base64 -d | \
     sudo -S -k -p '' -- "$@"
@@ -559,7 +569,9 @@ run_privileged nsenter --target "$namespace_pid" --mount -- \
   mountpoint -q "$workspace_path"
 run_privileged nsenter --target "$namespace_pid" --mount -- \
   test -w "$workspace_path"
-if mountpoint -q "$workspace_path" || test -r "$workspace_path"; then
+if mountpoint -q "$workspace_path" || run_privileged setpriv \
+    --reuid="$uid_value" --regid="$gid_value" --clear-groups \
+    test -r "$workspace_path"; then
   echo 'Verifier scratch leaked into the Actor-visible mount namespace'
   run_privileged kill "$namespace_pid" 2>/dev/null || true
   exit 125
@@ -569,8 +581,8 @@ printf 'FORGE_VERIFIER_NAMESPACE=%s:%s:%s\n' \
 run_privileged rm -f -- "$status_path"
 rm -f -- "$keeper_path" "$log_path"
 """
-        result = _run_script_with_staging_fallback(
-            self._vm, "bash", script, timeout=timeout, cap=0)
+        result = self._run_harness_script(
+            "bash", script, timeout=timeout, cap=0)
         if result.exit_code != 0 or result.infra_fail:
             self._init_reason = (
                 "Verifier private-workspace preflight failed; model-authored code was "
@@ -636,8 +648,8 @@ printf %s "$hidden_payload" | base64 -d | while IFS= read -r hidden_path \
 done
 printf FORGE_ROLLBACK_PRIVATE_PATHS_HIDDEN
 """
-        trace = _run_script_with_staging_fallback(
-            self._vm, "bash", script, timeout=max(30, int(timeout)), cap=0)
+        trace = self._run_harness_script(
+            "bash", script, timeout=max(30, int(timeout)), cap=0)
         if (trace.exit_code != 0 or trace.infra_fail
                 or "FORGE_ROLLBACK_PRIVATE_PATHS_HIDDEN" not in trace.stdout):
             return _trace(
@@ -669,8 +681,8 @@ run_privileged nsenter --target {int(self._namespace_pid)} --mount -- \
   test -w "$workspace_path"
 printf '{marker}\n'
 """
-        result = _run_script_with_staging_fallback(
-            self._vm, "bash", wrapper, timeout=timeout, cap=0)
+        result = self._run_harness_script(
+            "bash", wrapper, timeout=timeout, cap=0)
         if (result.exit_code != 0 or result.infra_fail
                 or marker not in (result.stdout or "")):
             return _trace(
@@ -721,12 +733,13 @@ cleanup() {{ rm -f -- "$script_path"; sudo -K >/dev/null 2>&1 || true; }}
 trap cleanup EXIT
 printf %s "$payload" | base64 -d > "$script_path"
 chmod 0600 "$script_path"
+if [ "$(id -u)" = 0 ]; then chown user:user "$script_path"; fi
 printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
   nsenter --target {int(self._namespace_pid)} --mount -- \
   {identity}{interpreter} "$script_path"
 """
-        result = _run_script_with_staging_fallback(
-            self._vm, "bash", wrapper, timeout=timeout, cap=0)
+        result = self._run_harness_script(
+            "bash", wrapper, timeout=timeout, cap=0)
         if not result.infra_fail and result.exit_code == 0:
             self._last_namespace_check = time.monotonic()
         return result
@@ -808,6 +821,15 @@ archive.unlink(missing_ok=True)
         not a content policy: every regular file and directory below the source
         is included, with no byte/count ceiling or semantic filtering.
         """
+        # This privileged transport is restricted to the private tmpfs created
+        # by this executor. It must never become a general root file reader.
+        if source_path != self._workspace:
+            raise AgenticVerifierInfrastructureError(
+                "Verifier export source escaped its private workspace")
+        prefix_path = pathlib.PurePosixPath(archive_prefix)
+        if prefix_path.is_absolute() or ".." in prefix_path.parts:
+            raise AgenticVerifierInfrastructureError(
+                "unsafe Verifier export archive prefix")
         archive_token = secrets.token_hex(12)
         failures = []
         # Prefer the ordinary guest filesystem because it may have substantially
@@ -819,40 +841,69 @@ archive.unlink(missing_ok=True)
                 transport_root + "/forge_verifier_export_" +
                 archive_token + ".tar")
             code = f'''import os, pathlib, stat, tarfile
-root = pathlib.Path({source_path!r})
-archive = pathlib.Path({archive_path!r})
+root = {source_path!r}
+archive = {archive_path!r}
 prefix = {archive_prefix!r}
-if not root.is_dir():
-    raise RuntimeError("Verifier export source is not a directory")
-def walk_error(error):
-    raise error
-# Verifier tools may preserve restrictive input permissions when unpacking files.
-# Only this fixed transport helper runs privileged; model programs remain under
-# the original execution boundary. Own the transport file as the desktop user
-# immediately, so the controller can fetch it and cleanup also works on failure.
-fd = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-with os.fdopen(fd, "wb") as output, tarfile.open(fileobj=output, mode="w") as tf:
-    os.fchown(output.fileno(), {int(self._desktop_uid)}, {int(self._desktop_gid)})
-    for current, dirs, files in os.walk(root, topdown=True, followlinks=False,
-                                      onerror=walk_error):
-        dirs[:] = sorted(d for d in dirs
-                         if not pathlib.Path(current, d).is_symlink())
-        rel_current = pathlib.Path(current).relative_to(root)
-        relative = "" if str(rel_current) == "." else str(rel_current)
-        arc_current = "/".join(part for part in (prefix, relative) if part)
-        if arc_current:
-            tf.add(current, arcname=arc_current, recursive=False)
-        for name in sorted(files):
-            path = pathlib.Path(current, name)
-            if path.is_symlink():
-                continue
-            mode = path.stat().st_mode
-            if stat.S_ISREG(mode):
-                relative_file = str(path.relative_to(root))
-                arc_file = "/".join(
-                    part for part in (prefix, relative_file) if part)
-                tf.add(path, arcname=arc_file, recursive=False)
+directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+root_fd = os.open(root, directory_flags)
+root_device = os.fstat(root_fd).st_dev
+
+def info(name, metadata, directory=False):
+    item = tarfile.TarInfo(name)
+    item.mode = stat.S_IMODE(metadata.st_mode)
+    item.uid, item.gid = metadata.st_uid, metadata.st_gid
+    item.mtime = metadata.st_mtime
+    item.type = tarfile.DIRTYPE if directory else tarfile.REGTYPE
+    item.size = 0 if directory else metadata.st_size
+    return item
+
+def visit(tf, directory_fd, relative):
+    for name in sorted(os.listdir(directory_fd)):
+        before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        is_directory = stat.S_ISDIR(before.st_mode)
+        if not (is_directory or stat.S_ISREG(before.st_mode)):
+            continue
+        flags = directory_flags if is_directory else (
+            os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(name, flags, dir_fd=directory_fd)
+        try:
+            actual = os.fstat(fd)
+            if ((actual.st_dev, actual.st_ino, stat.S_IFMT(actual.st_mode)) !=
+                    (before.st_dev, before.st_ino, stat.S_IFMT(before.st_mode))
+                    or actual.st_dev != root_device):
+                raise RuntimeError("Verifier scratch changed during export")
+            child = "/".join(part for part in (relative, name) if part)
+            archive_name = "/".join(part for part in (prefix, child) if part)
+            if is_directory:
+                tf.addfile(info(archive_name, actual, directory=True))
+                visit(tf, fd, child)
+            else:
+                # Every hard-linked regular file is stored as ordinary bytes.
+                # Descriptor-relative, no-follow opens keep concurrent link
+                # replacement from redirecting this trusted reader elsewhere.
+                with os.fdopen(os.dup(fd), "rb") as content:
+                    tf.addfile(info(archive_name, actual), content)
+        finally:
+            os.close(fd)
+
+try:
+    archive_fd = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                         os.O_NOFOLLOW, 0o600)
+    with os.fdopen(archive_fd, "wb") as outgoing:
+        with tarfile.open(fileobj=outgoing, mode="w") as tf:
+            if prefix:
+                tf.addfile(info(prefix, os.fstat(root_fd), directory=True))
+            visit(tf, root_fd, "")
+        outgoing.flush()
+        os.fsync(outgoing.fileno())
+        os.fchown(outgoing.fileno(), {int(self._desktop_uid)}, {int(self._desktop_gid)})
+finally:
+    os.close(root_fd)
 '''
+            # Unzip and similar tools can legitimately leave mode-000 files or
+            # non-searchable directories in the Verifier's private scratch.
+            # Archive their exact bytes using the confined trusted reader;
+            # model-authored Programs retain their existing desktop identity.
             trace = self._run_in_private_mount_namespace(
                 "python", code, timeout=3600, as_desktop=False)
             if trace.exit_code == 0 and not trace.infra_fail:
@@ -960,8 +1011,8 @@ workspace_path={self._workspace!r}
 program_path={program_path!r}
 payload={encoded!r}
 sudo_password_b64={self._sudo_password_b64!r}
-uid_value=$(id -u)
-gid_value=$(id -g)
+uid_value=$(id -u user)
+gid_value=$(id -g user)
 cleanup_program() {{
   printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
     nsenter --target {int(self._namespace_pid)} --mount -- \
@@ -1052,8 +1103,10 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
       *) echo "Verifier scratch did not remain writable"; exit 125 ;;
     esac
     mkdir -p "$1/home"
-    printf "%s\\n" "$5"
-    exec setpriv \
+    set -o pipefail
+    {{ chown "$2:$3" /proc/self/fd/1 || exit 125
+       printf "%s\\n" "$5"
+       exec setpriv \
       --reuid="$2" --regid="$3" --clear-groups \
       --bounding-set=-all --inh-caps=-all --ambient-caps=-all \
       --no-new-privs \
@@ -1062,22 +1115,22 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
         LANG=C.UTF-8 LC_ALL=C.UTF-8 \
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         TMPDIR=/tmp XDG_RUNTIME_DIR="/run/user/$2" VERIFIER_SCRATCH="$1" \
-        "$4" "$6"
+        "$4" "$6"; }} 2>&1 | cat
   ' forge-verifier \
     "$workspace_path" "$uid_value" "$gid_value" \
     {interpreter!r} {ready_token!r} "$program_path" \
     {base64.b64encode(chr(10).join(self._private_paths).encode()).decode()!r} \
     "$payload"
 """
-        result = _run_script_with_staging_fallback(
-            self._vm, "bash", wrapper, timeout=timeout, cap=0)
+        result = self._run_harness_script(
+            "bash", wrapper, timeout=timeout, cap=0)
         visible_output = (getattr(result, "context_stdout", None)
                           or result.stdout or "")
         if ready_token not in visible_output:
             return VerifierTrace(
                 stdout=(
-                    "[verifier effect-isolation setup failed; model-authored code "
-                    "did not receive a trusted sandbox]\n" +
+                    "[verifier effect-isolation readiness was not confirmed; "
+                    "program execution is unknown; output may be incomplete]\n" +
                     (result.stdout or "(no diagnostic output)")),
                 exit_code=125,
                 secs=result.secs,
@@ -1106,8 +1159,8 @@ workspace_path={self._workspace!r}
 program_path={program_path!r}
 payload={encoded!r}
 sudo_password_b64={self._sudo_password_b64!r}
-uid_value=$(id -u)
-gid_value=$(id -g)
+uid_value=$(id -u user)
+gid_value=$(id -g user)
 cleanup_program() {{
   printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
     nsenter --target {int(self._namespace_pid)} --mount -- \\
@@ -1121,8 +1174,10 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
     printf %s "$8" | base64 -d > "$6"
     chown "$2:$3" "$6"
     chmod 0600 "$6"
-    printf "%s\\n" "$5"
-    exec setpriv \\
+    set -o pipefail
+    {{ chown "$2:$3" /proc/self/fd/1 || exit 125
+       printf "%s\\n" "$5"
+       exec setpriv \\
       --reuid="$2" --regid="$3" --clear-groups \\
       --bounding-set=-all --inh-caps=-all --ambient-caps=-all \\
       --no-new-privs \\
@@ -1134,20 +1189,20 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
         XDG_RUNTIME_DIR="/run/user/$2" \\
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$2/bus" \\
         TMPDIR=/tmp VERIFIER_SCRATCH="$1" \\
-        "$4" "$6"
+        "$4" "$6"; }} 2>&1 | cat
   ' forge-verifier-mirror \\
     "$workspace_path" "$uid_value" "$gid_value" \\
     {interpreter!r} {ready_token!r} "$program_path" ignored "$payload"
 """
-        result = _run_script_with_staging_fallback(
-            self._vm, "bash", wrapper, timeout=timeout, cap=0)
+        result = self._run_harness_script(
+            "bash", wrapper, timeout=timeout, cap=0)
         visible_output = (getattr(result, "context_stdout", None)
                           or result.stdout or "")
         if ready_token not in visible_output:
             return VerifierTrace(
                 stdout=(
-                    "[verifier rollback-mirror setup failed; model-authored code "
-                    "did not receive the checkpointed environment]\n" +
+                    "[verifier rollback-mirror readiness was not confirmed; "
+                    "program execution is unknown; output may be incomplete]\n" +
                     (result.stdout or "(no diagnostic output)")),
                 exit_code=125,
                 secs=result.secs,
@@ -1271,7 +1326,7 @@ sudo -K >/dev/null 2>&1 || true
 """
         try:
             if self._workspace_attempted:
-                self._vm.run_script("bash", script, timeout=120, cap=0)
+                self._run_harness_script("bash", script, timeout=120, cap=0)
         except Exception:
             # The QEMU rollback below is the authoritative cleanup in mirror mode;
             # in the historical namespace mode the randomized mount disappears with
