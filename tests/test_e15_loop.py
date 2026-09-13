@@ -1066,7 +1066,12 @@ def test_v12_role_models_restore_k3_curriculum_and_verifier():
         assert configs[role].vision_model_2 == ""
 
 
-def test_v12_task_visible_asset_names_are_authorized_without_weakening_fence():
+def test_v12_task_visible_asset_names_are_authorized_without_weakening_fence(monkeypatch):
+    from tools import exam_fence
+    # This unit test exercises authorization, not external denylist extraction.
+    monkeypatch.setattr(exam_fence, "_load_constants", lambda: {
+        "056": list(e15_v12_loop.TARGET_INPUTS),
+    })
     visible_names = " ".join(e15_v12_loop.TARGET_INPUTS)
 
     assert audit_text(

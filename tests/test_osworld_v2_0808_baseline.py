@@ -24,6 +24,21 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _fixture_release(tmp_path, lock_path):
+    """Bind a copied lock to synthetic task sources, retaining all role profiles."""
+    task_root = tmp_path / "task_class"
+    task_root.mkdir()
+    for task in shard.EXPECTED_TASKS:
+        (task_root / f"{task}.py").write_text("# inert test source\n")
+    lock = shard.read_lock(lock_path)
+    identity = shard.task_content_identity(task_root)
+    for key in ("content_tree_sha256", "total_bytes"):
+        lock["task_files"][key] = identity[key]
+    fixture_lock = tmp_path / lock_path.name
+    fixture_lock.write_text(json.dumps(lock))
+    return fixture_lock, task_root
+
+
 def test_launcher_keeps_virtualenv_python_symlink(tmp_path):
     base = tmp_path / "base-python"
     base.write_text("base", encoding="utf-8")
@@ -168,10 +183,10 @@ def test_release_environment_uses_pinned_asset_root(monkeypatch, tmp_path):
     assert environment["OSWORLD_USER_SIM_MAX_TOKENS"] == "256"
 
 
-def test_repair_lock_preserves_release_but_binds_fixed_runtime_configs():
+def test_repair_lock_preserves_release_but_binds_fixed_runtime_configs(tmp_path):
+    fixture_lock, task_root = _fixture_release(tmp_path, REPAIR_LOCK_PATH)
     lock, actor, verifier, escalated = shard.validate_lock(
-        REPO, REPAIR_LOCK_PATH,
-        REPO.parent / "OSWorld-V2/evaluation_examples/task_class")
+        REPO, fixture_lock, task_root)
 
     assert lock["benchmark_release"] == "osworld-v2-2026.08.08"
     assert lock["osworld_code"]["commit"] == \
@@ -187,14 +202,14 @@ def test_repair_lock_preserves_release_but_binds_fixed_runtime_configs():
 
 
 def test_current_0808_still_requires_its_locked_user_simulator(tmp_path):
-    lock = json.loads(LOCK_PATH.read_text())
+    fixture_lock, task_root = _fixture_release(tmp_path, LOCK_PATH)
+    lock = json.loads(fixture_lock.read_text())
     del lock["user_simulator"]
     path = tmp_path / "missing-user-simulator.lock.json"
     path.write_text(json.dumps(lock))
 
     with pytest.raises(shard.PreflightError, match="user-simulator transport"):
-        shard.validate_lock(
-            REPO, path, REPO.parent / "OSWorld-V2/evaluation_examples/task_class")
+        shard.validate_lock(REPO, path, task_root)
 
 
 def test_historical_repair_lock_is_independent_of_mutable_baseline(tmp_path):
