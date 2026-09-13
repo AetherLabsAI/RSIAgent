@@ -1,9 +1,12 @@
 # RSIAgent
 
-RSIAgent is a framework for improving computer-use agents through practice and
-durable memory. An Actor performs tasks, an independent Verifier evaluates its
-work, and a Curriculum agent chooses the next learning experience. Learning
-updates the Actor's memory files; it does not update model weights.
+[Paper (Overleaf project)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Installation](#installation) · [Architecture](docs/ARCHITECTURE.md)
+
+RSIAgent is a research framework for **recursive self-improvement of computer-use
+agents** through practice and durable memory. An Actor performs tasks, an
+independent Verifier evaluates its work, and a Curriculum agent chooses the next
+learning experience. Learning updates the Actor's memory files; it does not update
+model weights.
 
 The current integration runs on **OSWorld-V2's August 8, 2026 release**, using
 Docker/QEMU guests. It supports three separate stages:
