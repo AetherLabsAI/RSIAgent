@@ -1,0 +1,57 @@
+# Persistent GLM-5.3 Verifier Agent for a Kimi K3 escalation segment.
+#
+# Full asymmetry is invariant:
+#   main:      GLM-5.3 Actor <-> Kimi K3 Verifier
+#   escalated: Kimi K3 Actor <-> GLM-5.3 Verifier
+#
+# GLM-5.3 receives one delegated Kimi K3 visual reading per Look. There is no
+# second eye, witness ensemble, or ensemble judge.
+
+model: z-ai/glm-5.3
+provider_order:
+  - Z.AI
+provider_allow_fallbacks: true
+provider_require_parameters: true
+max_tokens: 65536
+temperature: 1.0
+primary_temperature: 1.0
+top_p: 1.0
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+
+agent_decided_stop: true
+max_iters: 2000
+# Inert in v2; retained for already-loaded v1 Verifier compatibility.
+max_nudges: 25
+wall_clock_secs: 86400
+llm_infra_retry_secs: 30
+script_timeout: 600
+controller_recovery_secs: 180
+controller_recovery_probe_secs: 5.0
+controller_recovery_stable_probes: 2
+max_resumes: 0
+escalation_model: ""
+action_discipline: true
+cycle_evidence: true
+
+# Preserve this Verifier Agent's complete context within the escalated segment.
+# The main K3 Verifier's private history is deliberately not imported.
+history_keep_pairs: 0
+trace_head: 0
+trace_tail: 0
+
+# GLM-5.3 is text-primary here, so every visual inspection delegates exactly one
+# reading to Kimi K3.
+vision_model: moonshotai/kimi-k3
+vision_rounds: 1
+look_ensemble: 1
+vision_max_tokens: 32768
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+
+# The outer Actor Agent <-> Verifier Agent harness owns verification.
+practice_mode: true
+independent_verify: false
+verifier_model: ""

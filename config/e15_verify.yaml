@@ -1,0 +1,34 @@
+# EXP-2026-015 VERIFIER AGENT. One fresh context independently publishes the
+# single terminal PASS/FAIL verdict. Numeric limits are emergency watchdogs only.
+model: moonshotai/kimi-k3
+vision_model: ""
+vision_rounds: 1
+look_ensemble: 1
+split_done_gate: true
+max_tokens: 24000
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+temperature: 0.0
+primary_temperature: 1.0
+top_p: 1.0
+agent_decided_stop: true
+max_iters: 2000
+max_nudges: 25
+wall_clock_secs: 86400
+history_keep_pairs: 0
+keep_chars: 500000
+verifier_model: ""
+ctx_high_water: 900000
+ctx_low_water: 500000
+doubts_block_pass: true
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+vision_max_tokens: 16000
+practice_mode: true
+independent_verify: false
+escalation_model: ""
+max_resumes: 0
+action_discipline: true
+cycle_evidence: true

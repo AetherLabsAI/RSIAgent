@@ -1,0 +1,37 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+
+# Experiment state must stay outside the source release
+/results/
+/_preserve/
+/experiment_packages/
+/docker_vm_data/
+/cache/
+/logs/
+*.qcow2
+*.vmdk
+*.img
+*.iso
+*.log
+
+# Python and editor state
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+build/
+dist/
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/

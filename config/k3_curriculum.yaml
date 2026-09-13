@@ -1,0 +1,42 @@
+# Unified-loop CURRICULUM AGENT.
+#
+# Kimi K3 owns only the high-level lifecycle decisions: HANDOFF / VERIFY_MORE
+# after a local PASS and REVISE / EVOLVE after a local FAIL.  This is a distinct,
+# persistent Agent context from the Kimi K3 Verifier Agent; sharing a model does
+# not share private conversation, scratch, candidate access, or authority.
+model: moonshotai/kimi-k3
+provider_order: []
+provider_allow_fallbacks: true
+provider_require_parameters: false
+vision_model: ""
+vision_rounds: 1
+look_ensemble: 1
+look_ensemble_temp: 0.8
+split_done_gate: true
+max_tokens: 65536
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+temperature: 0.0
+primary_temperature: 1.0
+top_p: 1.0
+agent_decided_stop: true
+max_iters: 2000
+max_nudges: 25
+wall_clock_secs: 86400
+history_keep_pairs: 0
+keep_chars: 0
+verifier_model: ""
+ctx_high_water: 0
+ctx_low_water: 0
+doubts_block_pass: true
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+vision_max_tokens: 32768
+practice_mode: true
+independent_verify: false
+escalation_model: ""
+max_resumes: 0
+action_discipline: true
+cycle_evidence: true

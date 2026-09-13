@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "benchmark": "OSWorld-v2",
+  "experiment": "full_task_local_self_evolving_v1",
+  "tag": "glm53_k3_self_evolving_v1",
+  "seed_label": 5301,
+  "task_release": "osworld-v2-2026.06.24",
+  "source_task_count": 108,
+  "valid_task_count": 106,
+  "valid_task_ids_sha256": "53228b2a708b2cfdee913d890e59cefa14118ebf23cf1e10fd0306f5d37c15e0",
+  "valid_task_ids": [
+    "task_001", "task_002", "task_003", "task_004", "task_005", "task_006",
+    "task_007", "task_008", "task_009", "task_010", "task_011", "task_012",
+    "task_013", "task_014", "task_015", "task_016", "task_017", "task_018",
+    "task_019", "task_020", "task_021", "task_022", "task_023", "task_024",
+    "task_025", "task_026", "task_027", "task_028", "task_029", "task_030",
+    "task_031", "task_032", "task_033", "task_034", "task_035", "task_036",
+    "task_037", "task_038", "task_039", "task_040", "task_041", "task_042",
+    "task_043", "task_044", "task_045", "task_046", "task_047", "task_049",
+    "task_050", "task_051", "task_052", "task_053", "task_054", "task_055",
+    "task_056", "task_057", "task_058", "task_059", "task_060", "task_061",
+    "task_062", "task_063", "task_064", "task_065", "task_066", "task_067",
+    "task_068", "task_069", "task_070", "task_071", "task_072", "task_073",
+    "task_074", "task_075", "task_076", "task_077", "task_078", "task_079",
+    "task_080", "task_081", "task_083", "task_084", "task_085", "task_086",
+    "task_087", "task_088", "task_089", "task_090", "task_091", "task_092",
+    "task_093", "task_094", "task_095", "task_096", "task_097", "task_098",
+    "task_099", "task_100", "task_101", "task_102", "task_103", "task_104",
+    "task_105", "task_106", "task_107", "task_108"
+  ],
+  "excluded_tasks": {
+    "task_048": {
+      "classification": "environment_invalid",
+      "reason": "Unity application crashes while loading the benchmark level; prior frontier runs also errored."
+    },
+    "task_082": {
+      "classification": "environment_invalid",
+      "reason": "The task requires an unavailable nested-Docker application stack inside the benchmark VM."
+    }
+  },
+  "num_shards": 3,
+  "assignments": [
+    {
+      "shard_index": 0,
+      "owner": "xinyue",
+      "first_task": 1,
+      "last_task": 36,
+      "range_task_count": 36,
+      "valid_task_count": 36
+    },
+    {
+      "shard_index": 1,
+      "owner": "shicheng",
+      "first_task": 37,
+      "last_task": 73,
+      "range_task_count": 37,
+      "valid_task_count": 36
+    },
+    {
+      "shard_index": 2,
+      "owner": "sibo",
+      "first_task": 74,
+      "last_task": 108,
+      "range_task_count": 35,
+      "valid_task_count": 34
+    }
+  ],
+  "actor_agent": {
+    "model": "z-ai/glm-5.3",
+    "config": "config/osworld_v2_glm53_k3_self_evolving.yaml",
+    "sha256": "14ece94d1b329a54bb8f7559f596a1aa52b1565cccfe37adec41564bc34a3ec7",
+    "provider_preference": ["Z.AI"],
+    "provider_fallback": "infrastructure_only_and_recorded"
+  },
+  "verifier_agent": {
+    "model": "moonshotai/kimi-k3",
+    "config": "config/osworld_v2_k3_agentic_verifier.yaml",
+    "sha256": "78808943b1eef820f1fefb2af9c0c9c5af303eea93e0bc71de6f04a6548aaef7",
+    "authority": "local_PASS_or_FAIL_only",
+    "persistent_within_target_attempt_and_resume": true,
+    "fresh_after_each_evolution_wave": true,
+    "candidate_blind_orientation": true,
+    "orientation_scope": "each_fresh_target_attempt",
+    "orientation_context_continues_into_candidate_verification": true,
+    "effect_isolated": true,
+    "actor_private_artifacts_hidden": true,
+    "provider_routing": "openrouter_auto_recorded"
+  },
+  "practice": {
+    "actor_model": "z-ai/glm-5.3",
+    "actor_config": "config/glm53_practice_actor.yaml",
+    "actor_config_sha256": "19d6d1c4be00808b7d63772c9bcb216ae5b2fdc9858c5afdb3b387a2946292ab",
+    "verifier_model": "moonshotai/kimi-k3",
+    "verifier_config": "config/osworld_v2_k3_agentic_verifier.yaml",
+    "verifier_config_sha256": "78808943b1eef820f1fefb2af9c0c9c5af303eea93e0bc71de6f04a6548aaef7",
+    "verifier_context": "fresh_per_practice_project",
+    "verifier_candidate_blind_orientation": false,
+    "memory_actor_model": "z-ai/glm-5.3",
+    "memory_actor_config": "config/glm53_practice_actor.yaml",
+    "memory_actor_config_sha256": "19d6d1c4be00808b7d63772c9bcb216ae5b2fdc9858c5afdb3b387a2946292ab"
+  },
+  "curriculum_agent": {
+    "model": "moonshotai/kimi-k3",
+    "config": "config/k3_curriculum.yaml",
+    "sha256": "b06570ab77be096f1c78c2843f36795f67b92241d09947c66c6ba4969b63aed0",
+    "persistent_within_task": true,
+    "authority": "practice_project_search_and_READY_FOR_RETRY_or_STALLED"
+  },
+  "configs": {
+    "target_actor": {
+      "path": "config/osworld_v2_glm53_k3_self_evolving.yaml",
+      "model": "z-ai/glm-5.3",
+      "sha256": "14ece94d1b329a54bb8f7559f596a1aa52b1565cccfe37adec41564bc34a3ec7"
+    },
+    "practice_actor": {
+      "path": "config/glm53_practice_actor.yaml",
+      "model": "z-ai/glm-5.3",
+      "sha256": "19d6d1c4be00808b7d63772c9bcb216ae5b2fdc9858c5afdb3b387a2946292ab"
+    },
+    "practice_verifier": {
+      "path": "config/osworld_v2_k3_agentic_verifier.yaml",
+      "model": "moonshotai/kimi-k3",
+      "sha256": "78808943b1eef820f1fefb2af9c0c9c5af303eea93e0bc71de6f04a6548aaef7"
+    },
+    "curriculum": {
+      "path": "config/k3_curriculum.yaml",
+      "model": "moonshotai/kimi-k3",
+      "sha256": "b06570ab77be096f1c78c2843f36795f67b92241d09947c66c6ba4969b63aed0"
+    },
+    "memory_actor": {
+      "path": "config/glm53_practice_actor.yaml",
+      "model": "z-ai/glm-5.3",
+      "sha256": "19d6d1c4be00808b7d63772c9bcb216ae5b2fdc9858c5afdb3b387a2946292ab"
+    }
+  },
+  "escalation": {
+    "trigger": "target_actor_stalled_with_remaining_budget",
+    "max_switches_per_target_attempt": 1,
+    "actor_model": "moonshotai/kimi-k3",
+    "actor_vision": "native_single_read",
+    "actor_provider_routing": "openrouter_auto_recorded",
+    "verifier_model": "z-ai/glm-5.3",
+    "verifier_config": "config/osworld_v2_glm53_agentic_verifier.yaml",
+    "verifier_config_sha256": "64e646fc37d8d0a60293054cf5fc4706b6df5067c83da50bb5d5ce6f483df295",
+    "verifier_vision": "one_delegated_kimi_k3_read",
+    "fresh_verifier_context_on_model_switch": true,
+    "persistent_within_escalated_segment": true,
+    "candidate_blind_orientation": "proactive_on_same_pre_actor_task_start_state",
+    "fully_asymmetric": true
+  },
+  "visual_eye": {
+    "model": "moonshotai/kimi-k3",
+    "readers_per_look": 1,
+    "ensemble_judge": false,
+    "provider_routing": "openrouter_auto_recorded"
+  },
+  "memory": {
+    "initial_state": "blank_per_task",
+    "scope": "task_local_only",
+    "cross_task_transfer": false,
+    "retrieval": "filename_and_size_inventory_then_actor_selected_reads",
+    "forced_full_read": false,
+    "size_cap": false,
+    "format_schema": false
+  },
+  "protocol": {
+    "initial_memory": "blank_per_task",
+    "pass_transition": "sealed_evaluation",
+    "fail_transition": "same_actor_learning_then_curriculum_practice",
+    "curriculum_ready_transition": "fresh_target_actor_and_environment",
+    "curriculum_stalled_transition": "one_final_fresh_target_test_then_sealed_evaluation",
+    "official_evaluator_calls": 1,
+    "official_evaluator_feedback_enters_loop": false,
+    "cross_task_memory": false,
+    "target_verifier_orientation": "candidate_blind_pre_actor",
+    "orientation_context": "same_context_as_candidate_verification",
+    "escalation_verifier_orientation": "proactive_on_same_task_start_state",
+    "practice_verifier_orientation": false
+  },
+  "benchmark_profile": {
+    "path": "config/osworld_v2_0624_runtime_0808_compat.lock.json",
+    "sha256": "f84876134c5cb9793220197e0e85011bd751d853612708031f903fbb0493227b",
+    "classification": "controlled_compatibility_profile_not_strict_official_release"
+  },
+  "evaluator": {
+    "provider": "openai_compatible",
+    "model": "openai/gpt-5.4",
+    "base_url": "https://openrouter.ai/api/v1",
+    "website_host_suffix": "web.hku.icu",
+    "retry_attempts": 5,
+    "retry_delay_seconds": 15,
+    "visibility": "sealed_after_actor_verifier_loop"
+  }
+}

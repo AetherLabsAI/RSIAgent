@@ -1,0 +1,12 @@
+# RSI host dependencies, pinned to versions used for release validation.
+# A real desktop run also needs the separately installed OSWorld-V2 environment.
+openai==3.0.0
+requests==2.31.0
+requests-toolbelt==1.0.0
+Pillow==11.0.0
+PyYAML==6.0.3
+python-dotenv==1.2.2
+cryptography==50.0.0
+Flask==3.0.3
+huggingface-hub==1.27.0
+docker==7.2.0

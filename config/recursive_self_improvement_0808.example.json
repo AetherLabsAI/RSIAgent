@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "run_name": "my_rsi_0808_t080_curriculum_v1",
+  "study_design": "target_conditioned_adaptation",
+  "task_release": "osworld-v2-2026.08.08",
+  "phase1": {
+    "distribution_file": "config/target_queries/task_080.md",
+    "project_budget": 8,
+    "checkpoints": [0, 4, 8],
+    "parallel_waves": true,
+    "parallelism": 4,
+    "actor_config": "config/glm53_practice_actor.yaml",
+    "verifier_config": "config/e15_verify.yaml",
+    "verifier_control_config": "config/osworld_v2_glm53_k3_recursive_practice.yaml",
+    "curriculum_config": "config/k3_curriculum.yaml",
+    "memory_config": "config/glm53_practice_actor.yaml"
+  },
+  "phase2": {
+    "stop_policy": "curriculum_review",
+    "development_tasks": ["task_080"],
+    "seed": 83080,
+    "target_config": "config/osworld_v2_glm53_k3_recursive_practice.yaml",
+    "practice_actor_config": "config/glm53_practice_actor.yaml",
+    "practice_verifier_config": "config/osworld_v2_k3_agentic_verifier.yaml",
+    "curriculum_config": "config/k3_curriculum.yaml",
+    "memory_config": "config/glm53_practice_actor.yaml"
+  },
+  "phase3": {
+    "held_out_tasks": ["task_080"],
+    "held_out_environment_families": [],
+    "seed": 93080,
+    "config": "config/osworld_v2_0808_glm53_k3_agentic_baseline.yaml",
+    "benchmark_lock": "config/osworld_v2_0808_glm53_k3_recursive_eval.lock.json"
+  }
+}

@@ -1,0 +1,58 @@
+# task_012 leakage blocklist — tokens derived from the task's instruction, setup and
+# grader. REJECT-ONLY: this list never enters the agent; it exists so that
+# tests/test_no_leakage.py can prove the prompt surface (forge/synth.py) carries no
+# task knowledge. Matched case-insensitively on word boundaries.
+#
+# course / candidate identity
+stat2602
+stat1302
+stat2603
+stat
+course
+semester
+exam
+exams
+paper
+papers
+pastpaper
+past_paper
+# named files / folders from instruction+setup
+my_mistakes
+mistakes
+final_review
+exambase
+old_papers
+assignment
+tutorial
+# target names / dates
+q1
+q2
+q3
+q4
+q5
+25may
+25 may
+24dec
+24 dec
+20dec
+20 dec
+17may
+17 may
+13dec
+13 dec
+# distractor discriminators (the traps — naming these in a prompt = solving for the agent)
+supplementary
+supp
+midterm
+sample
+trash
+gio
+# formats / tools that would hint the solution route
+pdf
+docx
+pdftotext
+ocr
+tesseract
+md5
+md5sum
+checksum

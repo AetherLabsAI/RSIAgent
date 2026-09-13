@@ -1,0 +1,97 @@
+# OSWorld v2 full-baseline freeze (2026-08-30).
+#
+# Actor Agent:    GLM-5.3
+# Verifier Agent: Kimi K3, persistent across every candidate revision and Actor
+#                 resume segment in one task
+# Visual eye:     one Kimi K3 reading per Actor Look
+# Memory:         OFF (this is the general-capability baseline, not a memory arm)
+#
+# Agent-chosen completion is authoritative. Numeric iteration/time values are
+# emergency watchdogs only and are not disclosed as a work budget in prompts.
+
+# Actor Agent model and OpenRouter route.
+model: z-ai/glm-5.3
+provider_order:
+  - Z.AI
+provider_allow_fallbacks: true
+provider_require_parameters: true
+max_tokens: 65536
+temperature: 1.0
+primary_temperature: 1.0
+top_p: 1.0
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+
+# Agentic lifecycle and emergency watchdogs.
+agent_decided_stop: true
+max_iters: 500
+# Inert in v2; retained so an already-loaded v1 process that opens this YAML later
+# still sees its originally frozen value.
+max_nudges: 25
+wall_clock_secs: 28800
+llm_infra_retry_secs: 30
+script_timeout: 600
+controller_recovery_secs: 180
+controller_recovery_probe_secs: 5.0
+controller_recovery_stable_probes: 2
+max_resumes: 1
+escalation_model: moonshotai/kimi-k3
+escalation_agentic_verifier_config: config/osworld_v2_glm53_agentic_verifier.yaml
+escalation_primary_temperature: 1.0
+escalation_provider_order: []
+escalation_provider_allow_fallbacks: true
+escalation_provider_require_parameters: false
+escalation_verifier_cross_model: true
+resume_synthesize_worklog: true
+action_discipline: true
+cycle_evidence: true
+
+# Lossless action-result transport. Model-written compaction is retained from the
+# validated long-horizon harness; complete transcripts remain archived.
+trace_head: 0
+trace_tail: 0
+history_keep_pairs: 80
+keep_chars: 500000
+ctx_high_water: 900000
+ctx_low_water: 500000
+fold_batch: 10
+worklog_max_chars: 500000
+
+# Actor Agent perception: one eye, no witness ensemble or judge.
+vision_model: moonshotai/kimi-k3
+vision_rounds: 1
+look_ensemble: 1
+look_ensemble_temp: 0.8
+vision_max_tokens: 32768
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+split_done_gate: true
+done_witness_gates: true
+
+# Full-authority Verifier Agent. The active runtime is the dedicated config below;
+# verifier_model is repeated here as an explicit role declaration and safe fallback.
+independent_verify: true
+verifier_model: moonshotai/kimi-k3
+verifier_continuity: true
+agentic_verifier_config: config/osworld_v2_k3_agentic_verifier.yaml
+
+# Canonical cross-model verifier fallbacks. The full-Agent dispatcher above runs
+# before the legacy structured inspector, so these do not constrain its report or
+# probe process; they keep the safe verifier stack intact if that opt-in path is ever
+# unavailable and keep the property-scoped config audit honest.
+verifier_elastic_depth: true
+budget_conditional_accept: true
+verifier_items: true
+verifier_appearance_attach: true
+appearance_attach_max: 2
+verifier_destination_note: true
+verifier_max_tokens: 65536
+verifier_probes: 6
+doubts_block_pass: true
+
+# Frozen baseline: no self-evolution memory enters the task.
+env_memory_dir: ""
+env_memory_orient: false
+env_memory_brief: false

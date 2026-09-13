@@ -1,0 +1,48 @@
+# Persistent Kimi K3 Verifier with bounded live context for 0808 repair reruns.
+# Complete programs, traces, and transcripts remain losslessly archived on disk.
+
+model: moonshotai/kimi-k3
+max_tokens: 65536
+temperature: 0.0
+primary_temperature: 1.0
+top_p: 1.0
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+
+agent_decided_stop: true
+max_iters: 2000
+max_nudges: 25
+wall_clock_secs: 86400
+llm_infra_retry_secs: 30
+script_timeout: 600
+controller_recovery_secs: 180
+controller_recovery_probe_secs: 5.0
+controller_recovery_stable_probes: 2
+max_resumes: 0
+escalation_model: ""
+action_discipline: true
+cycle_evidence: true
+
+# Archive losslessly, but keep the provider request safely below its context window.
+history_keep_pairs: 20
+keep_chars: 200000
+ctx_high_water: 500000
+ctx_low_water: 250000
+fold_batch: 2
+worklog_max_chars: 200000
+trace_head: 0
+trace_tail: 0
+trace_context_max_chars: 250000
+
+vision_model: ""
+vision_rounds: 1
+look_ensemble: 1
+vision_max_tokens: 32768
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+
+practice_mode: true
+independent_verify: false
+verifier_model: ""

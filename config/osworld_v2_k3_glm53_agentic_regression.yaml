@@ -1,0 +1,92 @@
+# OSWorld v2 reverse-stack regression arm v2 (2026-08-30).
+#
+# Main segment:
+#   Kimi K3 Actor Agent (native vision)
+#     <-> persistent GLM-5.3 Verifier Agent (one delegated Kimi K3 eye)
+#
+# Stalled-segment escalation remains fully asymmetric:
+#   GLM-5.3 Actor Agent (one delegated Kimi K3 eye)
+#     <-> persistent Kimi K3 Verifier Agent (native vision)
+#
+# Memory is OFF. One visual reader is used per Look. Agent-chosen completion is
+# authoritative; the numeric limits below are emergency watchdogs only. Recoverable
+# provider downtime pauses the same Agent call and is excluded from active work time.
+
+model: moonshotai/kimi-k3
+provider_order: []
+provider_allow_fallbacks: true
+provider_require_parameters: false
+max_tokens: 65536
+temperature: 1.0
+primary_temperature: 1.0
+top_p: 1.0
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+
+agent_decided_stop: true
+max_iters: 500
+# Inert in v2; retained for already-loaded v1 process compatibility.
+max_nudges: 25
+wall_clock_secs: 28800
+llm_infra_retry_secs: 30
+script_timeout: 600
+controller_recovery_secs: 180
+controller_recovery_probe_secs: 5.0
+controller_recovery_stable_probes: 2
+max_resumes: 1
+escalation_model: z-ai/glm-5.3
+escalation_agentic_verifier_config: config/osworld_v2_k3_agentic_verifier.yaml
+escalation_primary_temperature: 1.0
+escalation_provider_order:
+  - Z.AI
+escalation_provider_allow_fallbacks: true
+escalation_provider_require_parameters: true
+escalation_verifier_cross_model: true
+resume_synthesize_worklog: true
+action_discipline: true
+cycle_evidence: true
+
+# Lossless artifacts/transcripts remain archived. Only the live conversation is
+# compacted near its context ceiling; model-written work logs carry older state.
+trace_head: 0
+trace_tail: 0
+history_keep_pairs: 80
+keep_chars: 500000
+ctx_high_water: 900000
+ctx_low_water: 500000
+fold_batch: 10
+worklog_max_chars: 500000
+
+# Kimi K3 sees images natively. There is exactly one visual reading, no ensemble.
+vision_model: ""
+vision_rounds: 1
+look_ensemble: 1
+look_ensemble_temp: 0.8
+vision_max_tokens: 32768
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+split_done_gate: true
+done_witness_gates: true
+
+# Persistent full-authority GLM-5.3 Verifier Agent for the main K3 segment.
+independent_verify: true
+verifier_model: z-ai/glm-5.3
+verifier_continuity: true
+agentic_verifier_config: config/osworld_v2_glm53_agentic_verifier.yaml
+
+# Safe legacy fallback fields; the full-Agent dispatcher runs first.
+verifier_elastic_depth: true
+budget_conditional_accept: true
+verifier_items: true
+verifier_appearance_attach: true
+appearance_attach_max: 2
+verifier_destination_note: true
+verifier_max_tokens: 65536
+verifier_probes: 6
+doubts_block_pass: true
+
+env_memory_dir: ""
+env_memory_orient: false
+env_memory_brief: false

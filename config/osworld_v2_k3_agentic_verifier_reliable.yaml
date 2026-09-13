@@ -1,0 +1,57 @@
+# Experiment-scoped, persistent full-authority Kimi K3 Verifier Agent.
+#
+# This has the same semantic harness policy as
+# osworld_v2_k3_agentic_verifier.yaml. It only prefers provider routes that
+# produced substantive code-as-policy verification in the t102 lifecycle
+# experiment, avoiding a route that repeatedly returned inert `true` programs.
+
+model: moonshotai/kimi-k3
+provider_order:
+  - Moonshot AI
+  - Sail Research
+  - Fireworks
+  - DigitalOcean
+  - Morph
+provider_allow_fallbacks: true
+provider_require_parameters: false
+max_tokens: 65536
+temperature: 0.0
+primary_temperature: 1.0
+top_p: 1.0
+reasoning_effort: "max"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+
+agent_decided_stop: true
+max_iters: 2000
+# Inert in v2; retained for already-loaded v1 Verifier compatibility.
+max_nudges: 25
+wall_clock_secs: 86400
+llm_infra_retry_secs: 30
+script_timeout: 600
+controller_recovery_secs: 180
+controller_recovery_probe_secs: 5.0
+controller_recovery_stable_probes: 2
+max_resumes: 0
+escalation_model: ""
+action_discipline: true
+cycle_evidence: true
+
+# Preserve the complete Verifier Agent conversation and program output.
+history_keep_pairs: 0
+trace_head: 0
+trace_tail: 0
+
+# Kimi K3 inspects images natively; one Look has one reading and no judge.
+vision_model: ""
+vision_rounds: 1
+look_ensemble: 1
+vision_max_tokens: 32768
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+
+# The outer Actor Agent <-> Verifier Agent harness owns verification.
+practice_mode: true
+independent_verify: false
+verifier_model: ""

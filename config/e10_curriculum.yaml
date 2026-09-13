@@ -1,0 +1,37 @@
+# E10 CURRICULUM AGENT — GLM-5.2 orchestration with the same model, sampling,
+# vision, and action-discipline protocol as e10_actor.yaml.  The Curriculum
+# keeps its own completion product (~/instance_next.md), owns its ruling/card,
+# and decides when that work is complete. Emergency watchdogs are hidden and
+# invalid.
+model: z-ai/glm-5.2
+vision_model: moonshotai/kimi-k3
+vision_rounds: 1
+look_ensemble: 2
+look_ensemble_temp: 0.8
+split_done_gate: true
+max_tokens: 10000
+reasoning_effort: "low"
+reasoning_max_tokens: 0
+reasoning_in_history: true
+temperature: 0.0
+agent_decided_stop: true
+max_iters: 2000
+max_nudges: 25
+wall_clock_secs: 86400
+history_keep_pairs: 80
+keep_chars: 500000
+verifier_model: ""
+ctx_high_water: 900000
+ctx_low_water: 500000
+doubts_block_pass: true
+look_max_side: 2560
+archive_eyes: false
+vision_model_2: ""
+vision_max_tokens: 16000
+practice_mode: true
+independent_verify: false
+escalation_model: ""
+max_resumes: 0
+action_discipline: true
+cycle_evidence: true
+practice_done_requires: "~/instance_next.md"
