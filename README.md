@@ -1,30 +1,80 @@
 # RSIAgent
 
-[Paper (Overleaf project)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Installation](#installation) · [Architecture](docs/ARCHITECTURE.md)
+**Autonomous Exploration for Recursive Self-improvement in New Environments**
 
-RSIAgent is a research framework for **recursive self-improvement of computer-use
-agents** through practice and durable memory. An Actor performs tasks, an
-independent Verifier evaluates its work, and a Curriculum agent chooses the next
-learning experience. Learning updates the Actor's memory files; it does not update
-model weights.
+[Paper (Overleaf)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Method](#method) · [Results](#results) · [Installation](#installation) · [Citation](#citation)
 
-The current integration runs on **OSWorld-V2's August 8, 2026 release**, using
-Docker/QEMU guests. It supports three separate stages:
+RSIAgent is a **training-free framework for recursive self-improvement** in new
+digital environments. It coordinates Curriculum, Actor, and Verifier agents to
+discover how an environment works, check what they learn against actual execution,
+and retain reusable knowledge in persistent memory. Model parameters stay fixed
+throughout exploration and downstream task execution.
 
-| Stage | What happens | Output |
+The paper's central strategy is **broad-then-deep exploration**: first acquire
+diverse experience, then investigate hard cases, hidden constraints, and boundary
+conditions. The resulting memory contains procedures, scripts, and failure lessons
+that a fresh Actor can reuse at test time.
+
+[![RSIAgent framework: parallel Broad Recursive Self-exploration, sequential Deep Recursive Self-exploration, and test-time reuse of frozen memory, illustrated with FreeCAD.](docs/assets/framework.png)](docs/assets/framework.png)
+
+*The paper's original framework figure, illustrated with a FreeCAD task. Broad
+experience is progressively refined into targeted memory, then frozen for reuse.
+Click the figure for full resolution. [Figure provenance](docs/PAPER.md#figure-provenance).*
+
+## Method
+
+Three agents carry out the recursive learning loop:
+
+- **Curriculum** chooses informative exploration tasks using prior outcomes and
+  accumulated knowledge, then decides whether further practice is useful.
+- **Actor** interacts with software through executable Python or Bash programs
+  and visual observations. After verification, the same Actor distills its
+  experience and reconciles it with existing memory.
+- **Verifier** independently inspects task requirements and the resulting
+  environment. Its feedback grounds learning; it cannot read the Actor's private
+  reasoning or memory.
+
+The paper has **two exploration stages followed by test-time memory reuse**.
+The implementation exposes these as three runtime phases:
+
+| Runtime phase | Paper stage | Learning and execution |
 | --- | --- | --- |
-| Phase 1: exploration | Curriculum authors practice waves; Actors work from the same starting memory; verified experiences are distilled in order. | General or target-conditioned memory |
-| Phase 2: adaptation | The Actor attempts a development target, learns from verified outcomes, and follows Curriculum-selected practice. | Adapted memory |
-| Phase 3: evaluation | A fresh Actor solves the task with a frozen memory snapshot, then the sealed official evaluator runs. | Official score and provenance |
+| **Phase 1** | **Broad Recursive Self-exploration (BRS)** | Curriculum proposes diverse projects. Actors execute and Verifiers check them in parallel from a shared starting memory. After the complete wave, Actors consolidate their experiences in order. |
+| **Phase 2** | **Deep Recursive Self-exploration (DRS)** | Target attempts reveal gaps and fragile successes. Curriculum selects focused practice; each verified experience updates memory before subsequent practice or a fresh target attempt. |
+| **Phase 3** | **Test-time memory reuse** | A fresh Actor uses the frozen memory in a reset environment. The Actor–Verifier loop runs without Curriculum or learning, followed by sealed official evaluation. |
 
-```mermaid
-flowchart LR
-    P1[Phase 1: practice waves] --> M1[Committed memory]
-    M1 --> P2[Phase 2: target and practice]
-    P2 --> M2[Frozen memory]
-    M2 --> P3[Phase 3: fresh Actor and Verifier]
-    P3 --> E[Sealed official evaluation]
-```
+Memory is the persistent learning state. Later Actors inherit its files, while
+their interaction histories and environments start fresh. Both grounded successes
+and failures can teach useful lessons. Official benchmark scores are kept outside
+the learning loop. See [Architecture](docs/ARCHITECTURE.md) for the role interfaces,
+wave memory barrier, and stopping rules.
+
+## Results
+
+The manuscript reports these **mean partial-credit scores (%)** for the shared
+Actor–Verifier harness with and without RSI:
+
+| Benchmark and reporting coverage | RSIAgent w/o RSI | RSIAgent |
+| --- | ---: | ---: |
+| OSWorld 2.0 · 0808 offline · 82 tasks | 71.97 | **78.98** |
+| Agents' Last Exam · Near-term · 64 of 67 tasks | 84.40 | **85.52** |
+
+These are the manuscript's reported aggregates. The RSI column uses 41 recorded
+RSI entries for OSWorld and 19 for ALE, retaining baseline scores for the other
+tasks. It includes selected retries and checkpoints with differing budgets; it
+is not an average over matched repeated runs. ALE also includes qualified local
+regrades and protocol variants. See the [paper and reporting notes](docs/PAPER.md)
+for the full scope, full-credit metrics, and aggregation details.
+
+The paper also examines stage ablations, memory growth, and game development.
+Its failure analysis identifies three limits to improvement: practice can miss
+the relevant weakness, verification can accept incomplete work, and memory can
+preserve an incorrect rule. The quality of exploration, verification, and memory
+consolidation therefore matters alongside the amount of practice.
+
+**This source release provides the OSWorld integration**, pinned to OSWorld-V2's
+August 8, 2026 release with Docker/QEMU guests. ALE and game-development runners
+are not included in this package.
 
 ## Installation
 
@@ -123,8 +173,10 @@ paths referenced by the phase results. See [operation and recovery](docs/OPERATI
 - Curriculum's direct Phase 2 memory access defaults to `read_only`. The direct
   Phase 2 runner also exposes `--phase2-curriculum-memory-access none` for separate
   comparison lineages. This disables Curriculum's direct access, not the Actor's.
-- The default Phase 2 lifecycle has no two-project cap. The recent capped
-  ablations used separate experiment controls, which are not a public runner API.
+- The default DRS lifecycle has no two-project cap. The paper's deep-only
+  ablations used at most two Curriculum practice projects through separate
+  experiment controls, which are not a public runner API. Target attempts and
+  their memory updates do not count as practice projects.
 - Official evaluation is unavailable during learning. Phase 3 uses frozen memory
   with no host writeback and no evaluation feedback into learning.
 
@@ -155,15 +207,32 @@ evaluator. In a fully prepared OSWorld Python environment, run them with
 
 ## Documentation
 
+- [Paper, figure provenance, and reporting scope](docs/PAPER.md)
 - [Architecture and learning protocol](docs/ARCHITECTURE.md)
 - [Operation, configuration, and recovery](docs/OPERATIONS.md)
 - [Release provenance](docs/RELEASE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Dependency and benchmark attribution](THIRD_PARTY.md)
 
-RSI is an experimental method. Memory can improve or regress performance; report
-all planned outcomes and repeated evaluation draws. A target-conditioned result
-does not establish generalization to an unseen task.
+A target-conditioned result does not establish generalization to an unseen task.
+Record the study design, exploration budget, all evaluation draws, and aggregation
+rule when reporting new experiments.
+
+## Citation
+
+If you use RSIAgent, please cite the manuscript:
+
+```bibtex
+@unpublished{zhu2026rsiagent,
+  title = {RSIAgent: Autonomous Exploration for Recursive
+           Self-improvement in New Environments},
+  author = {Zhu, Sibo and Fan, Shicheng and Wang, Xinyue
+            and Wu, Wenyi and Zhou, Kun and Huang, Biwei},
+  year = {2026},
+  note = {Technical report},
+  url = {https://www.overleaf.com/project/6a9a6f621edd6601b808861f}
+}
+```
 
 ## License status
 
