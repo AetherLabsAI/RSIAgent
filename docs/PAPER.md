@@ -4,12 +4,14 @@ The README describes **RSIAgent: Autonomous Exploration for Recursive
 Self-improvement in New Environments**, by Sibo Zhu, Shicheng Fan, Xinyue Wang,
 Wenyi Wu, Kun Zhou, and Biwei Huang.
 
-Its source is the [Overleaf project](https://www.overleaf.com/project/6a9a6f621edd6601b808861f),
-read from a clean local checkout at revision
-`6e36cb432ddda99f8cc60a8af74d72b1a9b693d5` on September 13, 2026.
+Its source is the [Overleaf project](https://www.overleaf.com/project/6a9a6f621edd6601b808861f).
+The method text and framework figure were read from a clean local checkout at
+revision `6e36cb432ddda99f8cc60a8af74d72b1a9b693d5` on September 13, 2026.
+The main results and reporting scope were updated from local manuscript revision
+`8c8d6006e6da2b0670bcd8f45d6428d047102afc` on September 14, 2026.
 The remote Overleaf head could not be verified during this documentation update;
-this revision identifies the manuscript used. The Overleaf link is a project link
-and may require access. No public PDF, arXiv identifier, or publication venue is
+these revisions identify the manuscript sources used. The Overleaf link is a
+project link and may require access. No public PDF, arXiv identifier, or publication venue is
 implied by the citation.
 
 ## Method sources
@@ -31,8 +33,8 @@ Exploration, Incomplete Verification, and Unreliable Memory Consolidation sectio
 ## Figure provenance
 
 [The README framework image](assets/framework.png) is a faithful PNG rendering
-of `assets/ExRSI_framework.pdf` at the paper revision above. This is the figure
-labeled `fig:rsi-framework` in `main.tex`, which illustrates the method with a
+of `assets/ExRSI_framework.pdf` at the original method revision above. This is the
+figure labeled `fig:rsi-framework` in `main.tex`, which illustrates the method with a
 FreeCAD task. Its original labels, artwork, and layout are preserved.
 
 Source PDF SHA-256:
@@ -53,7 +55,7 @@ The README's partial-credit values are transcribed from `tab:main-results` in
 | Benchmark | Partial w/o RSI | Partial with RSI | Full credit w/o RSI | Full credit with RSI |
 | --- | ---: | ---: | ---: | ---: |
 | OSWorld 2.0, 0808 offline | 71.97 | 78.98 | 37.80 | 42.68 |
-| Agents' Last Exam, Near-term | 84.40 | 85.52 | 50.00 | 51.56 |
+| Agents' Last Exam, Near-term | 83.75 | 84.82 | 49.25 | 50.75 |
 
 The RSI Task Selection and Reporting and Main-Table Reporting Details appendices
 define how these figures were aggregated:
@@ -61,10 +63,12 @@ define how these figures were aggregated:
 - **OSWorld:** 82 tasks, including a zero for T082's setup failure. The RSI row
   uses 41 reported non-diagnostic RSI scores, including regressions and recorded
   retries. The remaining 41 tasks retain their baseline scores.
-- **ALE:** 64 of 67 Near-term tasks; three unscored GPU tasks are excluded from
-  both rows. The RSI row uses 19 reported RSI-column entries and retains 45
-  baseline scores. Entries include local corrected grades, ECG results qualified
-  by public-label transfer, and a no-BRS Tax Form variant.
+- **ALE:** all 67 Near-term tasks. The RSI row uses 19 reported RSI-column
+  entries and retains 48 baseline scores. The three GPU baseline results are
+  included in both aggregates under the baseline-retention rule. Full credit is
+  achieved on 33/67 tasks without RSI and 34/67 tasks in the RSI aggregate.
+  Entries include local corrected grades, ECG results qualified by public-label
+  transfer, and a no-BRS Tax Form variant.
 - **Comparison scope:** retained baselines are not new RSI evaluations.
   Selected runs, checkpoints, budgets, and evaluation scopes are not fully
   matched. These tables are manuscript-reported results, not a new result-file

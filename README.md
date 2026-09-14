@@ -61,12 +61,14 @@ harness coordinating the Actor Agent and Verifier Agent, with and without RSI:
 | Benchmark and reporting coverage | RSIAgent w/o RSI | RSIAgent |
 | --- | ---: | ---: |
 | OSWorld 2.0 · 0808 offline · 82 tasks | 71.97 | **78.98** |
-| Agents' Last Exam · Near-term · 64 of 67 tasks | 84.40 | **85.52** |
+| Agents' Last Exam · Near-term · 67 tasks | 83.75 | **84.82** |
 
 These are the manuscript's reported aggregates. The RSI column uses 41 recorded
 RSI entries for OSWorld and 19 for ALE, retaining baseline scores for the other
-tasks. It includes selected retries and checkpoints with differing budgets; it
-is not an average over matched repeated runs. ALE also includes qualified local
+41 OSWorld tasks and 48 ALE tasks. ALE includes all 67 Near-term tasks, including
+the three GPU baseline results. The RSI column includes selected retries and
+checkpoints with differing budgets; it is not an average over matched repeated
+runs. ALE also includes qualified local
 regrades and protocol variants. See the [paper and reporting notes](docs/PAPER.md)
 for the full scope, full-credit metrics, and aggregation details.
 
