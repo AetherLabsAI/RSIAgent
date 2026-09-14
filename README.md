@@ -1,5 +1,7 @@
 # RSIAgent
 
+**Causality-driven RSI Agent v1**
+
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
 [Paper (Overleaf)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Method](#method) · [Results](#results) · [Installation](#installation) · [Citation](#citation)
