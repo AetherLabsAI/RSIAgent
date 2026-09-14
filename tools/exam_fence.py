@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import shlex
+import posixpath
 
 from pathlib import Path
 
@@ -24,6 +25,13 @@ EXAM_SEATS = ["042", "044", "056", "011", "036", "062",           # benchmark-de
 
 # --- signal patterns -------------------------------------------------------
 PATH_PAT = re.compile(r"OSWorld-V2|evaluation_examples|task_class", re.I)
+# Do not mask these components inside an otherwise public application path.
+_PROTECTED_PATH = re.compile(
+    r"\b(?:evaluation_examples|task_class|grader_constants\.json)\b"
+    r"|\bdesktop_env/+evaluators\b|\btask_\d{3}\.py\b", re.I)
+_BENCHMARK_PATH = re.compile(
+    r"(?<![\w.-])(?:[\w~./-]+/)?OSWorld-V2"
+    r"(?:/[^\s\"'`<>;,()\[\]{}\\]*)?(?![\w-])", re.I)
 REPO_PAT = re.compile(r"github\.com/+[^ '\"]*OSWorld|xlang-ai", re.I)
 TASKID_PAT = re.compile(r"\btask[_ ]?0*(%s)\b" % "|".join(EXAM_SEATS), re.I)
 
@@ -53,7 +61,9 @@ _APP_VOCAB = {"frame_rate_num", "frame_rate_den", "lift_gamma_gain",
               # Task-author content (deliverable filenames, instruction
               # fragments) deliberately NOT allowlisted.
               "fade_out", "gain_r", "gain_g", "gain_b", "mask_start",
-              "warp_resource", "0.96"}
+              "warp_resource", "0.96",
+              # Ordinary document-record columns, independent of task content.
+              "case_name", "pdf_url"}
 # Clock fragments ("02.000" from HH:MM:SS.mmm) are format artifacts, never
 # distinctive — excluded as a CLASS, not just the two observed instances.
 _CLOCK_FRAG = re.compile(r"^\d{2}\.\d{3}$")
@@ -85,6 +95,89 @@ def _contains_exact_literal(text: str, literal: str) -> bool:
     left = rf"(?<!{boundary})" if re.match(r"\w", literal[0]) else ""
     right = rf"(?!{boundary})" if re.match(r"\w", literal[-1]) else ""
     return re.search(left + re.escape(literal) + right, text) is not None
+
+
+def _observed_path_copy(text: str) -> str:
+    """Classify quoted README paths only in a recorded program observation.
+
+    Executed code is audited separately. Keep URLs, unknown repository files,
+    protected paths and all non-path text visible; this is not an output bypass.
+    """
+    def replace(match):
+        value = match.group(0)
+        prefix, suffix = re.split(r"OSWorld-V2", value, maxsplit=1, flags=re.I)
+        if (prefix.startswith("//")
+                or text[max(0, match.start() - 1):match.start()] == ":"
+                or _PROTECTED_PATH.search(value)):
+            return value
+        relative = posixpath.normpath(suffix.lstrip("/") or ".")
+        if (relative == "." or relative == "self_hosted_websites"
+                or relative.startswith("self_hosted_websites/")):
+            return "[observed application path]"
+        return value
+    return _BENCHMARK_PATH.sub(replace, text)
+
+
+def _text_fields(value):
+    """Decode JSON fields before matching: a literal newline is not '\\n'."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from _text_fields(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _text_fields(item)
+    else:
+        yield value if isinstance(value, str) else json.dumps(value)
+
+
+def _transcript_audit_copy(text: str) -> str:
+    """Recognize ArtifactSink's schema and the runner's actual Program grammar."""
+    try:
+        doc = json.loads(text)
+    except (ValueError, TypeError):
+        return text
+    if (not isinstance(doc, dict) or not isinstance(doc.get("system"), str)
+            or not isinstance(doc.get("messages"), list)):
+        return text
+    from core.actor import Program, parse_turn
+
+    previous = None
+    for message in doc["messages"]:
+        if not isinstance(message, dict):
+            previous = None
+            continue
+        content = message.get("content")
+        if (message.get("role") == "user" and isinstance(content, str)
+                and content.startswith("PROGRAM OUTPUT (")
+                and isinstance(previous, dict)
+                and previous.get("role") == "assistant"
+                and isinstance(previous.get("content"), str)):
+            try:
+                action = parse_turn(previous["content"])
+            except (ValueError, TypeError):
+                action = None
+            if isinstance(action, Program):
+                message["content"] = _observed_path_copy(content)
+        previous = message
+    return "\n".join(_text_fields(doc))
+
+
+def _trace_audit_copy(path: Path, text: str) -> str:
+    """Apply the same observation rule to an archived Program's raw stdout."""
+    if not any((path.parent / name).is_file()
+               for name in ("program.py", "program.sh")):
+        return text
+    try:
+        metadata = json.loads((path.parent / "trace_meta.json").read_text())
+    except (OSError, ValueError):
+        return text
+    if (isinstance(metadata, dict)
+            and type(metadata.get("exit_code")) is int
+            and type(metadata.get("secs")) in (int, float)
+            and isinstance(metadata.get("timed_out"), bool)):
+        return _observed_path_copy(text)
+    return text
 
 
 def extract_constants(seat: str) -> list:
@@ -230,7 +323,9 @@ def audit_text(text: str, mode: str = "practice",
     consts = _load_constants()
     tuple_text = _BUDGET_LINE.sub("", text)    # constant-tuple copy only
     for seat, vals in consts.items():
-        found = [v for v in vals if _contains_exact_literal(tuple_text, v)]
+        # Runs may retain a denylist built before a schema exclusion was added.
+        found = [v for v in vals if v not in _APP_VOCAB
+                 and _contains_exact_literal(tuple_text, v)]
         if authorized_instruction:
             found = [v for v in found if not _contains_exact_literal(
                 authorized_instruction, v)]
@@ -253,13 +348,18 @@ def audit_transcripts(root: str, mode: str = "practice",
     out = []
     for dirpath, _, files in os.walk(root):
         for fn in files:
-            if not fn.endswith((".txt", ".json", ".jsonl", ".md")):
+            if (not fn.endswith((".txt", ".json", ".jsonl", ".md"))
+                    and fn not in {"program.py", "program.sh"}):
                 continue
             p = os.path.join(dirpath, fn)
             try:
                 txt = open(p, encoding="utf-8", errors="ignore").read()
             except OSError:
                 continue
+            if fn == "transcript.json":
+                txt = _transcript_audit_copy(txt)
+            elif fn == "trace.txt":
+                txt = _trace_audit_copy(Path(p), txt)
             hits = audit_text(
                 txt, mode=mode,
                 authorized_instruction=authorized_instruction)

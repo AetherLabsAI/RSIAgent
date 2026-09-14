@@ -117,14 +117,103 @@ print(json.dumps({{'removed_payload_roots':roots}}))
     vm.trusted_python(code, timeout=1800)
 
 
+_PUBLIC_PATH = re.compile(
+    r"(?<![\w./\\-])(?:[A-Za-z]:)?[\\/]?(?:[\w.-]+[\\/]+)+[\w.-]*"
+)
+_LOCAL_VENV_INSTALL = re.compile(
+    r"(?<![\w./-])(?:python(?:3(?:\.\d+)?)?\s+-m\s+venv|uv\s+venv)"
+    r"\s+(?P<venv>\.?venv)\s*&&\s*uv\s+pip\s+install\s+--python\s+"
+    r"(?P=venv)/bin/python(?:3(?:\.\d+)?)?(?![\w./-])"
+)
+
+
+def _path_spelling(value):
+    value = re.sub(r"[\\/]+", "/", value)
+    if any(part in (".", "..") for part in value.split("/")):
+        return ""
+    # A sentence-ending period is not part of its quoted filename.
+    return value.rstrip("./")
+
+
+class _PublicTaskText:
+    """Task-bound public wording and declared path spellings, never agent prompts."""
+
+    def __init__(self, record):
+        from explore.commit import _shingles
+
+        self.instruction = record["instruction"]
+        task = record["task_id"]
+        prompt = record["task_prompt"]
+        if (not isinstance(self.instruction, str) or not self.instruction
+                or not isinstance(prompt, str) or not prompt
+                or not isinstance(task, str) or not re.fullmatch(r"[\w-]+/[\w-]+", task)):
+            raise ValueError("Invalid ALE public task binding")
+        texts = (prompt, self.instruction)
+        declared = [_path_spelling(match.group()) for text in texts
+                    for match in _PUBLIC_PATH.finditer(text)]
+        visible = [_path_spelling(path) for path in record["visible_roots"]]
+        task_root = re.compile(
+            r"^(?:/media/user/data/agenthle/|[A-Za-z]:/agenthle/)"
+            + re.escape(task) + r"/([^/]+)(?:/|$)"
+        )
+        self.roots = {}
+        for path in visible + declared:
+            match = task_root.match(path)
+            if match:
+                self.roots[path[:match.end()].rstrip("/")] = match.group(1)
+        # A broad ancestor such as /home/user or /media/user/data grants nothing.
+        self.visible = tuple(path for path in visible if task_root.match(path))
+        self.aliases = set()
+        for path in declared:
+            self.aliases.update(self._aliases(path))
+        self.grams = set()
+        for text in texts:
+            self.grams.update(_shingles(text))
+            for spelling in range(4):
+                equivalent = _PUBLIC_PATH.sub(
+                    lambda match: self._aliases(_path_spelling(match.group()))[spelling], text
+                )
+                self.grams.update(_shingles(equivalent))
+
+    def _aliases(self, path):
+        """Expand only this task's declared variant/input/output path syntax."""
+        if not path:
+            return (path,) * 4
+        for root, variant in self.roots.items():
+            if path.startswith(root + "/"):
+                suffix = path[len(root) + 1:]
+            elif path.startswith(variant + "/"):
+                suffix = path[len(variant) + 1:]
+            elif path.lstrip("/").startswith(("input/", "output/")):
+                suffix = path.lstrip("/")
+            else:
+                continue
+            short = suffix.split("/", 1)[1] if suffix.startswith(("input/", "output/")) else suffix
+            return root + "/" + suffix, variant + "/" + suffix, suffix, short
+        return (path,) * 4
+
+    def occurrence_spans(self, text):
+        paths = []
+        for match in _PUBLIC_PATH.finditer(text):
+            path = _path_spelling(match.group())
+            if path and (path in self.aliases or any(
+                    path == root or path.startswith(root + "/") for root in self.visible)):
+                paths.append((match.start(), match.end()))
+        # Only the syntactic venv/install prefix is ordinary setup. Package names,
+        # trailing commands, and the same words elsewhere still face the audit.
+        setup = [(match.start(), match.end()) for match in _LOCAL_VENV_INSTALL.finditer(text)]
+        return paths, setup
+
+
 class Audit:
     """Host-only public-instruction leakage audit; no grader constants or scores."""
 
-    def __init__(self, corpus):
+    def __init__(self, corpus, public_task=None):
         self.path = Path(corpus)
         self.grams = set(json.loads(self.path.read_text()))
         if not self.grams or any(not isinstance(v, str) for v in self.grams):
             raise RuntimeError("ALE instruction corpus is missing or malformed")
+        self.public_task = _PublicTaskText(public_task) if public_task is not None else None
 
     def validate(self, path):
         if (
@@ -135,7 +224,7 @@ class Audit:
         return {"benchmark": "ALE", "shingles": len(self.grams)}
 
     def text(self, text, mode="practice", authorized_instruction="", **kwargs):
-        from explore.commit import _shingles
+        from explore.commit import _N, _WORD, _shingles
 
         hits = []
         if re.search(
@@ -144,7 +233,38 @@ class Audit:
             re.I,
         ):
             hits.append({"kind": "benchmark-private-source"})
-        if (_shingles(text) & self.grams) - _shingles(authorized_instruction):
+        allowed = _shingles(authorized_instruction)
+        binding = self.public_task if authorized_instruction else None
+        if binding is not None:
+            if authorized_instruction != binding.instruction:
+                raise ValueError("ALE audit does not match its bound instruction")
+            allowed |= binding.grams
+        suspect = (_shingles(text) & self.grams) - allowed
+        if binding is not None and suspect:
+            paths, setup = binding.occurrence_spans(text)
+            folded = text.lower()
+            if len(folded) != len(text):
+                # Unicode lowercasing can change offsets (for example İ).
+                paths, setup = [
+                    [(len(text[:start].lower()), len(text[:end].lower()))
+                     for start, end in spans] for spans in (paths, setup)
+                ]
+            words = list(_WORD.finditer(folded))
+            unexplained = False
+            for index in range(len(words) - _N + 1):
+                group = words[index:index + _N]
+                if " ".join(word.group() for word in group) not in suspect:
+                    continue
+                if any(start <= group[0].start() and group[-1].end() <= end
+                       for start, end in setup):
+                    continue
+                if all(any(start <= word.start() and word.end() <= end
+                           for start, end in paths) for word in group):
+                    continue
+                unexplained = True
+                break
+            suspect = suspect if unexplained else set()
+        if suspect:
             hits.append({"kind": "other-task-instruction"})
         return hits
 
@@ -202,11 +322,11 @@ class Audit:
         }
 
 
-def hooks_for(pool, corpus):
+def hooks_for(pool, corpus, public_task=None):
     from core.loop import run_attempt
     from explore.practice_loop import PracticeHooks
 
-    audit = Audit(corpus)
+    audit = Audit(corpus, public_task=public_task)
     windows = pool.vms[0].is_windows
     home = pool.vms[0].home
     if windows:

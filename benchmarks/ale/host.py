@@ -160,6 +160,22 @@ def freeze_source(destination):
         shutil.copy2(path, destination / path.name)
 
 
+def public_task_audit(task, card, instruction, visible_roots):
+    """Bind public card wording to its issued task, for host-side auditing only."""
+    # The pinned cards use both identity spellings. A contradictory card is
+    # never a source of additional authorized wording.
+    identities = [card[key] for key in ("taskId", "task_id") if key in card]
+    if (not identities or any(value != task for value in identities)
+            or not isinstance(card.get("taskPrompt"), str) or not card["taskPrompt"]):
+        raise ValueError("Public task card does not match the selected ALE task")
+    return {
+        "task_id": task,
+        "task_prompt": card["taskPrompt"],
+        "instruction": instruction,
+        "visible_roots": list(visible_roots),
+    }
+
+
 async def run(args, manifest):
     from ale_run.base_interface import SandboxSpec
     from ale_run.environments.env import ALEEnv
@@ -357,6 +373,14 @@ async def run(args, manifest):
                     p for p in (data.input_dir, data.remote_output_dir) if p
                 ],
             }
+            if name in ("phase1", "phase2"):
+                card = json.loads(
+                    (Path(args.ale_root) / "tasks" / task / "task_card.json").read_text()
+                )
+                # This metadata stays in Audit; the agent's instruction is unchanged.
+                worker_spec["audit_public_task"] = public_task_audit(
+                    task, card, meta["description"], worker_spec["visible_roots"]
+                )
             if reset_service is not None:
                 worker_spec["reset_endpoint"] = reset_service.path
             if target_env is not None:

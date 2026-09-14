@@ -29,13 +29,15 @@ def _sha256(path: Path) -> str:
 
 
 def _load_secret(environment: MutableMapping[str, str], name: str,
-                 *, repo_root: Path) -> None:
+                 *, repo_root: Path, required: bool = True) -> None:
     if environment.get(name):
         return
     env_path = resolve_env_file(environment, repo_root)
     try:
         lines = env_path.read_text(encoding="utf-8").splitlines()
     except OSError as exc:
+        if not required:
+            return
         raise BenchmarkRuntimeError(
             f"benchmark credential {name!r} is absent and the credential file "
             f"cannot be read: {env_path}") from exc
@@ -46,6 +48,8 @@ def _load_secret(environment: MutableMapping[str, str], name: str,
             if value:
                 environment[name] = value
                 return
+    if not required:
+        return
     raise BenchmarkRuntimeError(
         f"benchmark credential {name!r} is absent from the environment and "
         f"credential file: {env_path}")
@@ -60,6 +64,33 @@ def _bind(environment: MutableMapping[str, str], name: str, value: object,
             f"{name} conflicts with associated benchmark lock {lock_path}: "
             f"environment={current!r}, lock={rendered!r}")
     environment[name] = rendered
+
+
+def configure_user_simulator(
+        user_simulator: dict | None, *, lock_path: Path, repo_root: Path,
+        environment: MutableMapping[str, str],
+        require_credential: bool = True) -> dict | None:
+    """Bind the optional task-user channel independently of the evaluator."""
+    if user_simulator is None:
+        return None
+    if not isinstance(user_simulator, dict):
+        raise BenchmarkRuntimeError(
+            f"associated user_simulator runtime is not an object: {lock_path}")
+    required = ("provider", "model", "base_url", "api_key_env", "max_tokens")
+    missing = [key for key in required if user_simulator.get(key) in (None, "")]
+    if missing:
+        raise BenchmarkRuntimeError(
+            f"associated user-simulator runtime lacks {missing}: {lock_path}")
+    # Validate on a copy so a conflicting route cannot leave a partial binding.
+    bound = dict(environment)
+    for key in required:
+        _bind(bound, f"OSWORLD_USER_SIM_{key.upper()}", user_simulator[key],
+              lock_path=lock_path)
+    key_env = str(user_simulator["api_key_env"])
+    _load_secret(bound, key_env, repo_root=repo_root,
+                 required=require_credential)
+    environment.update(bound)
+    return {key: user_simulator[key] for key in required}
 
 
 def configure_associated_benchmark_lock(
@@ -132,28 +163,9 @@ def configure_associated_benchmark_lock(
     for name, value in evaluator_bindings.items():
         _bind(values, name, value, lock_path=lock_path)
 
-    user_simulator = lock.get("user_simulator")
-    if user_simulator is not None:
-        if not isinstance(user_simulator, dict):
-            raise BenchmarkRuntimeError(
-                f"associated user_simulator runtime is not an object: {lock_path}")
-        required_user = (
-            "provider", "model", "base_url", "api_key_env", "max_tokens")
-        missing = [key for key in required_user
-                   if user_simulator.get(key) in (None, "")]
-        if missing:
-            raise BenchmarkRuntimeError(
-                f"associated user-simulator runtime lacks {missing}: {lock_path}")
-        user_key_env = str(user_simulator["api_key_env"])
-        _load_secret(values, user_key_env, repo_root=repo_root)
-        for name, value in {
-                "OSWORLD_USER_SIM_PROVIDER": user_simulator["provider"],
-                "OSWORLD_USER_SIM_MODEL": user_simulator["model"],
-                "OSWORLD_USER_SIM_BASE_URL": user_simulator["base_url"],
-                "OSWORLD_USER_SIM_API_KEY_ENV": user_key_env,
-                "OSWORLD_USER_SIM_MAX_TOKENS": user_simulator["max_tokens"],
-        }.items():
-            _bind(values, name, value, lock_path=lock_path)
+    configure_user_simulator(
+        lock.get("user_simulator"), lock_path=lock_path, repo_root=repo_root,
+        environment=values)
 
     lock_hash = _sha256(lock_path)
     values["RSIAGENT_BENCHMARK_LOCK_RESOLVED"] = str(lock_path.resolve())
