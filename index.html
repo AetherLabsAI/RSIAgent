@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1eee5">
+  <meta name="description" content="RSIAgent turns autonomous exploration into reusable experience through a broad-then-deep recursive self-improvement framework, without updating model weights.">
+  <title>RSIAgent — Autonomous Exploration for Recursive Self-improvement</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/svg+xml" href="assets/aetherai-mark-color.svg">
+  <script src="site.js" defer></script>
+  <script src="case-video.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <section class="entrance" id="entrance" aria-labelledby="entrance-title">
+    <iframe class="entrance-art" src="evolution.html?mode=entrance" title="An evolving form, introducing RSIAgent" sandbox="allow-scripts" aria-hidden="true" tabindex="-1"></iframe>
+    <div class="entrance-masthead"><img class="company-logo" src="assets/aetherai-wordmark-color.svg" width="2200" height="200" alt="Aether AI"><span>Research / 2026</span></div>
+    <p class="entrance-title" id="entrance-title"><span>Always</span><em>becoming.</em></p>
+    <div class="entrance-footer"><span>Autonomous exploration</span><a href="#main">Discover RSIAgent <span aria-hidden="true">↓</span></a></div>
+  </section>
+  <header class="site-header">
+    <a class="wordmark" href="#main" aria-label="RSIAgent home">RSIAgent<span aria-hidden="true">.</span></a>
+    <nav aria-label="Main navigation"><a href="#method">Method</a><a href="#results">Results</a><a href="#experience">Experience</a><a href="#resources">Resources</a></nav>
+  </header>
+  <main id="main">
+    <section class="hero" aria-labelledby="paper-title">
+      <p class="eyebrow">Aether AI / Recursive self-improvement</p>
+      <h1 id="paper-title">RSIAgent</h1>
+      <p class="paper-subtitle">Autonomous Exploration for Recursive Self-improvement in New Environments</p>
+      <div class="hero-actions"><a class="text-link" href="#method">Explore the research <span aria-hidden="true">↓</span></a><a class="text-link" href="#results">View the results <span aria-hidden="true">↗</span></a></div>
+    </section>
+    <div class="film-section">
+      <div class="film-shell"><iframe src="evolution.html" title="RSIAgent — Evolution, an automatically playing 20-second art film" allow="autoplay" sandbox="allow-scripts" loading="lazy"></iframe></div>
+      <noscript><p>The Evolution film requires JavaScript. All research content below remains available.</p></noscript>
+    </div>
+    <section class="authors-section" aria-label="Paper authors and affiliations">
+      <p class="authors"><span>Sibo Zhu<sup>1,2,†,‡</sup></span><span>Shicheng Fan<sup>1,3,†,‡</sup></span><span>Xinyue Wang<sup>1,2,†,‡</sup></span><span>Wenyi Wu<sup>1,2,‡</sup></span><span>Kun Zhou<sup>1,*</sup></span><span>Biwei Huang<sup>1</sup></span></p>
+      <p class="affiliations"><span><sup>1</sup> Aether AI</span><span><sup>2</sup> University of California San Diego</span><span><sup>3</sup> University of Illinois Chicago</span></p>
+      <p class="author-notes">† Equal contribution. &nbsp; * Corresponding author and project leader. &nbsp; ‡ Work done during internship at Aether AI.</p>
+    </section>
+
+    <section id="method" class="section" aria-labelledby="method-title">
+      <p class="eyebrow">01 / The idea</p>
+      <div class="section-intro"><h2 id="method-title">The next attempt<br>should not start<br><em>from zero.</em></h2><div class="intro-copy"><p>Unfamiliar software comes with its own interfaces, conventions, and failure modes. An agent can repair a mistake during one attempt and still have to discover the same lesson again in the next.</p><p>RSIAgent turns these interactions into persistent experience. It explores, checks outcomes, and consolidates useful procedures into memory that subsequent attempts can reuse—<strong>without updating model weights.</strong></p></div></div>
+
+      <div class="role-loop" aria-label="The curriculum agent proposes tasks, the actor agent executes code, and the verifier agent checks outcomes. The actor agent consolidates experience into reusable memory.">
+        <div><span class="role-label">curriculum agent</span><span class="role-description">Propose what to explore</span></div><span class="loop-arrow" aria-hidden="true">→</span>
+        <div><span class="role-label">actor agent</span><span class="role-description">Act through code</span></div><span class="loop-arrow" aria-hidden="true">→</span>
+        <div><span class="role-label">verifier agent</span><span class="role-description">Check the outcome</span></div>
+      </div>
+      <p class="loop-return"><span aria-hidden="true">↶</span> Experience is consolidated into memory and informs the next exploration.</p>
+
+      <div class="stages">
+        <article><span class="stage-index">01</span><p class="stage-meta">BRS / Parallel exploration</p><h3>Broad Recursive<br>Self-exploration</h3><p>Explore complementary directions in parallel. Acquire practical knowledge of the environment, tools, and procedures that may matter for the task.</p></article>
+        <article><span class="stage-index">02</span><p class="stage-meta">DRS / Sequential refinement</p><h3>Deep Recursive<br>Self-exploration</h3><p>Build on that experience through sequential attempts and feedback-guided practice. Revisit hard cases, hidden constraints, and boundary conditions.</p></article>
+        <article><span class="stage-index">03</span><p class="stage-meta">Evaluation / Memory reuse</p><h3>Carry the<br>experience forward</h3><p>Freeze the accumulated memory and reuse it for task execution after an environment reset. The model weights and agent harness remain unchanged.</p></article>
+      </div>
+
+      <figure class="paper-figure framework-figure"><a href="assets/framework.pdf" target="_blank" rel="noopener" aria-label="Open the complete RSIAgent framework figure as a PDF"><img src="assets/framework.png" alt="RSIAgent framework illustrated with a FreeCAD task: broad parallel exploration, deep sequential exploration, and evaluation with frozen memory." loading="lazy" decoding="async"></a><figcaption>The broad-then-deep framework, illustrated with a FreeCAD task. <a href="assets/framework.pdf" target="_blank" rel="noopener">Open the full figure ↗</a></figcaption></figure>
+      <details class="disclosure"><summary>Inside the agent harness</summary><div class="disclosure-content harness-grid"><div><h4>Code as policy</h4><p>The actor agent uses executable programs to interact with software, inspect artifacts, and revise actions from execution feedback. Retained procedures can therefore be inspected and reused as code.</p></div><div><h4>Exploration configuration</h4><p>The paper’s default configuration uses GLM-5.3 for the actor agent and Kimi-K3 for the verifier and curriculum agents in separate contexts. The curriculum agent receives the target query in both exploration stages.</p><p>BRS has a nominal budget of eight projects, with up to four in parallel; budgets are checked between completed waves. DRS proceeds sequentially until the curriculum agent decides that no further useful practice is needed.</p></div></div></details>
+    </section>
+
+    <section id="results" class="section" aria-labelledby="results-title">
+      <p class="eyebrow">02 / The evidence</p><h2 id="results-title">Same models.<br><em>A stronger agent.</em></h2>
+      <p class="lede">Autonomous exploration and memory reuse improve the reported aggregate scores on two computer-use benchmarks.</p>
+      <div class="benchmark-grid">
+        <article class="benchmark" aria-labelledby="osworld-title"><p class="benchmark-split">0808 offline · 82 tasks</p><h3 id="osworld-title">OSWorld 2.0</h3><p class="big-score">78.98<span>/100</span></p><p class="score-description">Partial score <span class="gain">+7.01 points with RSI</span></p>
+          <div class="bar-chart" role="img" aria-label="OSWorld 2.0 partial scores: GPT-5.6 Sol 64.13, Claude Opus 5 70.19, GPT-6 Astra 72.60, RSIAgent 78.98, on a 0 to 100 scale.">
+            <div class="bar-row"><span>GPT-5.6 Sol</span><div class="bar-track"><div class="bar-fill" style="width:64.13%"></div></div><span class="bar-value">64.13</span></div>
+            <div class="bar-row"><span>Claude Opus 5</span><div class="bar-track"><div class="bar-fill" style="width:70.19%"></div></div><span class="bar-value">70.19</span></div>
+            <div class="bar-row"><span>GPT-6 Astra</span><div class="bar-track"><div class="bar-fill" style="width:72.60%"></div></div><span class="bar-value">72.60</span></div>
+            <div class="bar-row ours"><span>RSIAgent</span><div class="bar-track"><div class="bar-fill" style="width:78.98%"></div></div><span class="bar-value">78.98</span></div>
+            <div class="bar-axis" aria-hidden="true"><span></span><div><span>0</span><span>50</span><span>100</span></div><span></span></div>
+          </div>
+          <p class="binary-score">Full-task success <strong>42.68%</strong><span>37.80% without RSI</span></p>
+        </article>
+        <article class="benchmark" aria-labelledby="ale-title"><p class="benchmark-split">Near-term · 67 scored tasks</p><h3 id="ale-title">Agents’ Last Exam</h3><p class="big-score">84.82<span>/100</span></p><p class="score-description">Partial score <span class="gain">+1.07 points with RSI</span></p>
+          <div class="bar-chart" role="img" aria-label="Agents’ Last Exam Near-term partial scores reported in the manuscript: GPT-5.6 Sol 78.82, Claude Opus 5 79.54, GPT-6 Astra 82.26, RSIAgent 84.82, on a 0 to 100 scale. All aggregates cover 67 tasks.">
+            <div class="bar-row"><span>GPT-5.6 Sol</span><div class="bar-track"><div class="bar-fill" style="width:78.82%"></div></div><span class="bar-value">78.82</span></div>
+            <div class="bar-row"><span>Claude Opus 5</span><div class="bar-track"><div class="bar-fill" style="width:79.54%"></div></div><span class="bar-value">79.54</span></div>
+            <div class="bar-row"><span>GPT-6 Astra</span><div class="bar-track"><div class="bar-fill" style="width:82.26%"></div></div><span class="bar-value">82.26</span></div>
+            <div class="bar-row ours"><span>RSIAgent</span><div class="bar-track"><div class="bar-fill" style="width:84.82%"></div></div><span class="bar-value">84.82</span></div>
+            <div class="bar-axis" aria-hidden="true"><span></span><div><span>0</span><span>50</span><span>100</span></div><span></span></div>
+          </div>
+          <p class="binary-score">Full-task success <strong>50.75%</strong><span>49.25% without RSI</span></p>
+        </article>
+      </div>
+      <p class="figure-note">Partial scores on a 0–100 scale, as reported in the manuscript. All ALE aggregates cover the 67 Near-term tasks.</p>
+      <details class="disclosure"><summary>Full model comparison</summary><div class="disclosure-content"><div class="table-scroll"><table class="results-table"><caption>Manuscript comparison set. Partial: mean task credit. Binary: full-task success. All values are percentages.</caption><thead><tr><th scope="col" rowspan="2">Model / method</th><th scope="colgroup" colspan="2">OSWorld 2.0</th><th scope="colgroup" colspan="2">ALE Near-term</th></tr><tr><th scope="col">Partial</th><th scope="col">Binary</th><th scope="col">Partial</th><th scope="col">Binary</th></tr></thead><tbody>
+        <tr class="group-row"><th colspan="5" scope="rowgroup">Open-source models</th></tr>
+        <tr><th scope="row">Kimi-K2.6</th><td>22.10</td><td>4.60</td><td>21.70</td><td>9.20</td></tr>
+        <tr><th scope="row">MiMo-V2.5</th><td>—</td><td>—</td><td>23.60</td><td>8.60</td></tr>
+        <tr><th scope="row">DeepSeek V4 Pro</th><td>—</td><td>—</td><td>43.81</td><td>19.90</td></tr>
+        <tr><th scope="row">Qwen3.8-Max</th><td>—</td><td>—</td><td>52.50</td><td>27.00</td></tr>
+        <tr><th scope="row">Kimi-K3</th><td>58.30</td><td>—</td><td>71.60</td><td>40.30</td></tr>
+        <tr class="group-row"><th colspan="5" scope="rowgroup">Closed-source models</th></tr>
+        <tr><th scope="row">Claude Opus 4.8</th><td>54.80</td><td>20.60</td><td>64.00</td><td>43.30</td></tr>
+        <tr><th scope="row">Claude Fable 5</th><td>—</td><td>—</td><td>71.10</td><td>37.30</td></tr>
+        <tr><th scope="row">GPT-5.6 Sol</th><td>64.13</td><td>28.10</td><td>78.82</td><td>47.76</td></tr>
+        <tr><th scope="row">Claude Opus 5</th><td>70.19</td><td>34.72</td><td>79.54</td><td>46.27</td></tr>
+        <tr><th scope="row">GPT-6 Astra</th><td>72.60</td><td>—</td><td>82.26</td><td>52.24</td></tr>
+        <tr><th scope="row">Gemini-3.8-Flash</th><td>59.00</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><th scope="row">Muse Spark 1.3</th><td>66.90</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="group-row"><th colspan="5" scope="rowgroup">Ours</th></tr>
+        <tr><th scope="row">RSIAgent (w/o RSI)</th><td>71.97</td><td>37.80</td><td>83.75</td><td>49.25</td></tr>
+        <tr class="ours-row"><th scope="row">RSIAgent</th><td>78.98</td><td>42.68</td><td>84.82</td><td>50.75</td></tr>
+      </tbody></table></div><p class="figure-note">—: not reported in the cited benchmark leaderboard or official technical report. Rows with ALE results are ordered by increasing ALE partial score within each comparison group.</p></div></details>
+      <details class="disclosure"><summary>Evaluation scope and reporting</summary><div class="disclosure-content reporting"><p><strong>OSWorld 2.0:</strong> 82 offline tasks, including T082’s setup failure as zero. The RSI aggregate uses 41 reported non-diagnostic RSI entries and the recorded baseline for the remaining tasks.</p><p><strong>ALE Near-term:</strong> All 67 tasks; the RSI aggregate combines 19 reported RSI scores and 48 retained baseline scores. These include locally corrected grades, qualified ECG public-label transfer, and a separate no-BRS Tax Form variant.</p><p>Comparison values follow the paper’s source snapshot of September 11, 2026. They are not a live leaderboard or a matched-budget comparison. Partial-credit improvements do not imply an advantage on every metric.</p><p>Source references: <a href="https://osworld-v2.xlang.ai/" target="_blank" rel="noopener noreferrer">OSWorld 2.0</a>, <a href="https://agents-last-exam.org/leaderboard" target="_blank" rel="noopener noreferrer">Agents’ Last Exam</a>, and <a href="https://openai.com/index/gpt-6-astra/" target="_blank" rel="noopener noreferrer">OpenAI’s GPT-6 Astra report</a>.</p></div></details>
+
+      <div class="analysis-grid">
+        <article><p class="eyebrow">Ablation study</p><h3>Broad, then deep.</h3><p>Full RSI has the highest reported partial score on each of the four selected tasks: spreadsheet repair, audio editing, presentation repair, and liver segmentation.</p><figure class="paper-figure"><a href="assets/ablation.png" target="_blank" rel="noopener"><img src="assets/ablation.png" alt="Ablation bars for T080, T085, T089 and T106, comparing w/o RSI, w/o DRS, w/o BRS and full RSI." loading="lazy" decoding="async"></a><figcaption>Full RSI bars average two historical evaluations per task. <a href="data/ablation.csv" download>Download the values ↓</a></figcaption></figure></article>
+        <article><p class="eyebrow">Across exploration rounds</p><h3>Following the trajectory.</h3><p>The paper follows successive memory checkpoints on three additional tasks. The curves make the evolution of performance across these checkpoints visible.</p><figure class="paper-figure"><a href="assets/rsi-rounds.png" target="_blank" rel="noopener"><img src="assets/rsi-rounds.png" alt="Recorded partial-score trajectories across RSI steps for T044, T049 and T065." loading="lazy" decoding="async"></a><figcaption>Checkpoint trajectories from the paper’s RSI-round analysis.</figcaption></figure></article>
+      </div>
+    </section>
+
+    <div class="experience-band"><section id="experience" class="section" aria-labelledby="experience-title">
+      <p class="eyebrow">03 / Inside the experience</p><div class="section-intro"><h2 id="experience-title">A lesson that<br>survives the<br><em>next attempt.</em></h2><div class="intro-copy"><p class="case-kicker">REAPER / FreeCAD</p><p>From audio production to 3D modeling, follow how broad exploration and deep refinement build memory for the next attempt.</p></div></div>
+      <figure class="experience-film" id="case-studies">
+        <video class="case-video" controls playsinline preload="none" width="1920" height="1080" poster="assets/rsiagent-case-studies-poster.jpg" aria-label="RSIAgent case studies in REAPER and FreeCAD" aria-describedby="case-video-caption">
+          <source src="assets/rsiagent-case-studies.mp4" type="video/mp4">
+          <p>Your browser does not support embedded video. <a href="assets/rsiagent-case-studies.mp4">Watch the case studies as an MP4.</a></p>
+        </video>
+        <figcaption id="case-video-caption"><span>REAPER &amp; FreeCAD · 1 min 29 sec</span><span>Native desktop replays with recorded memory history.</span></figcaption>
+      </figure>
+      <div class="section-intro"><h3>Inside the<br>REAPER task.</h3><div class="intro-copy"><p class="case-kicker">T085 / Audio production in REAPER</p><p>Assemble a radio bumper from recorded takes, preserve the requested source order, insert precise gaps, and export a separately processed ending. Getting the content right is only part of the task: the rendered audio must also match the intended edits.</p><p class="case-score"><span>68.00</span><span class="case-arrow" aria-hidden="true">→</span><strong>94.17</strong></p><p class="case-score-label">Partial score (%) · baseline → first frozen-memory RSI evaluation</p></div></div>
+      <div class="case-steps"><article><span>01 / Explore</span><h3>Acquire the procedures.</h3><p>Seven broad-exploration projects cover source selection, precise splicing, silence measurement, and pitch and duration transformations.</p></article><article><span>02 / Refine</span><h3>Test the actual render.</h3><p>Further practice compares native edits with preassembled audio. A sample mismatch prompts a correction to the retained resampling advice.</p></article><article><span>03 / Reuse</span><h3>Apply the retained lesson.</h3><p>The evaluation retrieves the plan-resolution memory, uses its eight recorded source spans, and applies the revised rendering setting.</p></article></div>
+      <div class="memory-note"><p class="eyebrow">A concrete retained setting</p><code>RENDER_RESAMPLE 0 0 0</code><p>The subsequent construction program adopts this revised REAPER setting; the saved re-render check reports identical audio-sample payloads for both deliverables.</p></div>
+      <figure class="paper-figure"><a href="assets/reaper-exports.png" target="_blank" rel="noopener"><img src="assets/reaper-exports.png" alt="Waveforms of the archived REAPER exports. Baseline outputs are above the first RSI evaluation outputs, comparing the full radio bumper and processed ending." loading="lazy" decoding="async"></a><figcaption>Actual archived audio, visualized as waveform envelopes. Baseline above; first frozen-memory RSI evaluation below.</figcaption></figure>
+      <details class="disclosure"><summary>See the source-fragment arrangement and component scores</summary><div class="disclosure-content"><figure class="paper-figure"><a href="assets/reaper-assembly.png" target="_blank" rel="noopener"><img src="assets/reaper-assembly.png" alt="Source-fragment arrangement reconstructed from the recorded construction program and the first RSI bumper waveform, with 0.50-second sentence gaps highlighted." loading="lazy" decoding="async"></a><figcaption>Source-fragment arrangement reconstructed from the recorded program, paired with the saved RSI audio waveform.</figcaption></figure><div class="table-scroll"><table class="results-table"><caption>T085 component scores, 0–1 scale. RSI is the first frozen-memory evaluation.</caption><thead><tr><th scope="col">Component</th><th scope="col">Baseline</th><th scope="col">RSI</th></tr></thead><tbody><tr><th scope="row">Source order</th><td>0.9062</td><td>0.9062</td></tr><tr><th scope="row">Sentence gaps</th><td>0.8250</td><td>1.0000</td></tr><tr><th scope="row">Closing sting</th><td>1.0000</td><td>1.0000</td></tr><tr><th scope="row">Processed final sentence</th><td>0.2837</td><td>0.8996</td></tr><tr><th scope="row">Basic duration</th><td>1.0000</td><td>1.0000</td></tr><tr class="ours-row"><th scope="row">Overall partial score</th><td>0.6800</td><td>0.9417</td></tr></tbody></table></div><p class="figure-note">The two full-RSI evaluation scores are 0.9417 and 0.9413; their mean, 0.9415, is used in the ablation figure.</p></div></details>
+    </section></div>
+
+    <section id="resources" class="section" aria-labelledby="resources-title"><p class="eyebrow">04 / Research resources</p><h2 id="resources-title">Explore the details.</h2><div class="resource-list"><a href="assets/framework.pdf" target="_blank" rel="noopener"><span><strong>Framework figure</strong><small>The complete broad-then-deep design</small></span><span>PDF ↗</span></a><a href="data/benchmark-results.csv" download><span><strong>Benchmark comparison</strong><small>Values reported in the manuscript</small></span><span>CSV ↓</span></a><a href="data/ablation.csv" download><span><strong>Stage-ablation results</strong><small>Four selected OSWorld 2.0 tasks</small></span><span>CSV ↓</span></a><div class="release-status"><span><strong>Paper &amp; code</strong><small>Public release links will be added here.</small></span><span>Forthcoming</span></div></div>
+      <div class="citation-block"><div class="citation-heading"><h3>Cite this work</h3><button class="copy-button" type="button" id="copy-citation">Copy BibTeX</button></div><pre><code id="citation">@unpublished{zhu2026rsiagent,
+  title = {RSIAgent: Autonomous Exploration for Recursive
+           Self-improvement in New Environments},
+  author = {Zhu, Sibo and Fan, Shicheng and Wang, Xinyue
+            and Wu, Wenyi and Zhou, Kun and Huang, Biwei},
+  year = {2026},
+  note = {Technical report}
+}</code></pre><p class="copy-status" id="copy-status" role="status" aria-live="polite"></p><a class="text-link" href="data/citation.bib" download>Download citation ↓</a></div>
+    </section>
+  </main>
+  <footer class="site-footer"><a class="wordmark" href="#main">RSIAgent<span aria-hidden="true">.</span></a><p>Autonomous exploration. Reusable experience.</p><span>2026</span></footer>
+</body>
+</html>

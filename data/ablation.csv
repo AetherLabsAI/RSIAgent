@@ -1,0 +1,5 @@
+task,description,without_RSI,without_DRS,without_BRS,full_RSI_mean
+T080,WPS spreadsheet repair,0.0500,0.5546,0.6030,0.6869
+T085,REAPER audio editing,0.6800,0.9107,0.6006,0.9415
+T089,Browser-based presentation repair,0.6750,0.7700,0.6400,0.8125
+T106,3D Slicer liver segmentation,0.3601,0.3855,0.4166,0.5406
