@@ -49,10 +49,13 @@ second supported runtime.
 
 ## Validation
 
-The September 14, 2026 release checks passed: 717 portable tests, plus the two
+The September 14, 2026 release checks passed: 718 portable tests, plus the two
 optional evaluator tests in the pinned OSWorld environment. The full OSWorld
 batch dry run covers 108 tasks (432 commands for baseline and RSI together).
 All seven current model profiles retain their previous effective settings.
+
+Entrypoint help is checked without an installed OSWorld checkout, including the
+internal phase modules. Argument parsing precedes benchmark initialization.
 
 Real VM smoke passed over both OSWorld HTTP and virtio transports (10 checks
 each), and on ALE Linux (16 checks, including a fresh guest reset). ALE Windows

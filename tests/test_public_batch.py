@@ -1,7 +1,10 @@
 """Public batch execution preserves phase order and isolates task failures."""
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +12,28 @@ import pytest
 import run_osworld as batch
 from scripts import setup_ale
 from benchmarks.ale.protocol import protocol, select_tasks
+
+
+def test_entrypoint_help_without_benchmark_installations(tmp_path):
+    environment = dict(
+        os.environ,
+        RSIAGENT_ROOT=str(batch.ROOT),
+        OSWORLD_ROOT=str(tmp_path / "missing-osworld"),
+    )
+    commands = [
+        ["run_osworld.py"],
+        ["run_ale.py"],
+        *[["-m", "benchmarks.osworld." + name]
+          for name in ("task", "phase1", "phase2", "pipeline")],
+    ]
+    for command in commands:
+        result = subprocess.run(
+            [sys.executable, *command, "--help"],
+            cwd=batch.ROOT, env=environment, text=True, capture_output=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, (command, result.stderr)
+        assert "usage:" in result.stdout
 
 
 def test_baseline_plan_covers_full_release_without_creating_outputs():

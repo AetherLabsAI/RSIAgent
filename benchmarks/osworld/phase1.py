@@ -220,8 +220,8 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    _install_paths()
     args = _parser().parse_args(argv)
+    _install_paths()
     if args.project_budget < 0:
         raise RuntimeError("--project-budget must be nonnegative")
     if args.max_parallel < 1:
