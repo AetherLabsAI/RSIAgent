@@ -44,3 +44,36 @@ A new live end-to-end experiment was not launched as part of packaging.
 This initial company-review package has no selected distribution license yet.
 Public visibility and licensing remain separate release decisions. Third-party
 dependencies retain their own licenses.
+
+## Runtime integration — September 14, 2026
+
+Integrated [Shicheng's PR #5](https://github.com/NickSiboZhu/forge/pull/5),
+source commit `e790a0142ad7749ef423ec45d70ac7d8bffe5cde`, with Sibo's follow-up
+fixes `de16c4c` (reject quarantined recovery) and
+`b09e3a84d5b20538ead876408faa3ea439324db7` (clean up partial scratch exports).
+Shicheng's original commit attribution is retained in the company history.
+
+The company integration keeps full wave-decision parsing, ordered project
+ledgers, wave counters, persistent Curriculum conversation validation, and the
+complete portable test runner. Interrupted, uncommitted work can be archived
+only after the completed boundary is validated. The direct `filelock` dependency
+is explicitly pinned.
+
+Validation on Python 3.12:
+
+- 794 portable tests passed; the two optional evaluator integration tests passed
+  separately against the frozen OSWorld checkout.
+- The corrected source PR passed its 464-test suite.
+- A disposable Docker/QEMU VM passed both the default HTTP and optional virtio
+  Verifier transports: desktop identity, dropped capabilities, hidden Actor
+  memory, lossless mode-000 scratch export, symlink exclusion, and rollback of
+  the candidate and Actor memory were checked with synthetic files.
+- VM ownership labels, loopback port bindings, signal status, and the controller
+  OOM policy were checked. Teardown removed the smoke VM and its anonymous
+  volume; every preexisting container retained its ID and status.
+- Dependency consistency and shell syntax checks passed. The smoke test used
+  no model API calls and made no official evaluator calls.
+
+The two historical companion diffs remain unapplied. Their overlap with current
+code and the remaining behavior changes are documented in
+[runtime recovery notes](rsi-infrastructure-recovery.md#companion-patches).

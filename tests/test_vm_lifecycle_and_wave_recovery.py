@@ -24,7 +24,7 @@ def boundary(tmp_path, count=1):
         (root / folder).mkdir(parents=True)
         for name, data in memory.items():
             (root / folder / name).write_bytes(data)
-    state = {"status": "infra", "projects": count, "last_project": count,
+    state = {"status": "infra", "projects": count, "last_project": count, "waves": count + 1,
              "phase1_parallel_waves": True, "project_budget": 8,
              "checkpoint_projects": [0, 4, 8], "max_parallel": 4,
              "target_query_conditioned": True,
@@ -38,7 +38,8 @@ def boundary(tmp_path, count=1):
             "wave_index": 1, "memory_before": {}, "memory_after": manifest})
         (root / "episodes/ep001/outcome.md").write_text("unaltered FAIL evidence")
         write(root / "waves/wave_001/curriculum_decision.json", {
-            "decision": "WAVE", "projects": [{"id": "p"}]})
+            "decision": "WAVE", "rationale": "practice needed",
+            "projects": [{"id": "p", "instruction": "Create /home/user/evolution_project/output"}]})
         (root / "waves/wave_001/outcomes.md").write_text("complete wave feedback")
         write(root / "curriculum/wave_001/segment_000/transcript.json", {
             "messages": [{"role": "user", "content": "original context"},

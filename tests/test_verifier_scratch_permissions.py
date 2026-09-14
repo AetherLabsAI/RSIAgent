@@ -37,6 +37,7 @@ def exporter(tmp_path):
     executor = AgenticVerifierExecutor(vm)
     executor._desktop_uid = os.getuid()
     executor._desktop_gid = os.getgid()
+    executor._workspace = str(tmp_path / "scratch")
     calls = []
 
     def trusted_helper(lang, code, *, timeout, as_desktop=True):
@@ -84,12 +85,10 @@ def test_directory_walk_failure_cannot_publish_partial_archive(tmp_path, monkeyp
     source.mkdir()
     executor, vm, calls = exporter(tmp_path)
 
-    def failed_walk(root, *, onerror=None, **kwargs):
-        if onerror:
-            onerror(PermissionError("permission denied reading directory"))
-        return iter(())
+    def failed_walk(root):
+        raise PermissionError("permission denied reading directory")
 
-    monkeypatch.setattr(os, "walk", failed_walk)
+    monkeypatch.setattr(os, "listdir", failed_walk)
     with pytest.raises(AgenticVerifierInfrastructureError, match="permission denied"):
         executor._export_regular_tree(str(source))
     assert vm.fetched == []
@@ -98,6 +97,7 @@ def test_directory_walk_failure_cannot_publish_partial_archive(tmp_path, monkeyp
 
 def test_missing_source_fails_without_fetch_or_fallback(tmp_path):
     executor, vm, calls = exporter(tmp_path)
-    with pytest.raises(AgenticVerifierInfrastructureError, match="not a directory"):
+    executor._workspace = str(tmp_path / "missing")
+    with pytest.raises(AgenticVerifierInfrastructureError, match="No such file"):
         executor._export_regular_tree(str(tmp_path / "missing"))
     assert vm.fetched == [] and calls == [False]

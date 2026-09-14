@@ -10,3 +10,4 @@ cryptography==50.0.0
 Flask==3.0.3
 huggingface-hub==1.27.0
 docker==7.2.0
+filelock==3.32.6

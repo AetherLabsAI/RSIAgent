@@ -890,13 +890,14 @@ try:
     archive_fd = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                          os.O_NOFOLLOW, 0o600)
     with os.fdopen(archive_fd, "wb") as outgoing:
+        # Allow the desktop controller to remove even a partially written tar.
+        os.fchown(outgoing.fileno(), {int(self._desktop_uid)}, {int(self._desktop_gid)})
         with tarfile.open(fileobj=outgoing, mode="w") as tf:
             if prefix:
                 tf.addfile(info(prefix, os.fstat(root_fd), directory=True))
             visit(tf, root_fd, "")
         outgoing.flush()
         os.fsync(outgoing.fileno())
-        os.fchown(outgoing.fileno(), {int(self._desktop_uid)}, {int(self._desktop_gid)})
 finally:
     os.close(root_fd)
 '''

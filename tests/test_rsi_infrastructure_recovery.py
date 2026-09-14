@@ -68,6 +68,9 @@ def test_launch_adapter_keeps_release_provider_ports_local(monkeypatch):
             self.environment = {"RAM_SIZE": "4G"}
     module = types.ModuleType("desktop_env.providers.docker.provider")
     module.DockerProvider = Provider
+    package = types.ModuleType("desktop_env.providers.docker")
+    package.provider = module
+    monkeypatch.setitem(sys.modules, package.__name__, package)
     monkeypatch.setitem(sys.modules, module.__name__, module)
     prepare_checkpointable_docker_provider("rollback_mirror")
     prepare_checkpointable_docker_provider("rollback_mirror")

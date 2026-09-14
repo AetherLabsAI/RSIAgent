@@ -100,3 +100,36 @@ def test_export_does_not_follow_a_file_replaced_by_symlink(tmp_path, monkeypatch
         executor._export_regular_tree(str(root))
     assert replaced
     assert outside.read_bytes() == b'private unrelated content'
+
+
+def test_failed_export_is_removable_by_desktop_controller(tmp_path, monkeypatch):
+    executor, root = local_exporter(tmp_path)
+    owned = set()
+    removed = []
+    fchown = os.fchown
+    cleanup = executor._vm.run_command
+
+    def transfer_ownership(fd, uid, gid):
+        owned.add(os.fstat(fd).st_ino)
+        return fchown(fd, uid, gid)
+
+    def failed_directory_read(fd):
+        raise PermissionError('permission denied during scratch export')
+
+    def desktop_cleanup(command, **kwargs):
+        import shlex
+        path = Path(shlex.split(command)[3])
+        # Model the desktop controller: it cannot unlink another user's file
+        # in the sticky /tmp or /dev/shm transport directory.
+        if path.exists() and path.stat().st_ino not in owned:
+            raise PermissionError('desktop cannot remove root-owned partial tar')
+        removed.append(path)
+        return cleanup(command, **kwargs)
+
+    monkeypatch.setattr(os, 'fchown', transfer_ownership)
+    monkeypatch.setattr(os, 'listdir', failed_directory_read)
+    monkeypatch.setattr(executor._vm, 'run_command', desktop_cleanup)
+    with pytest.raises(AgenticVerifierInfrastructureError, match='during scratch export'):
+        executor._export_regular_tree(str(root))
+    assert len(removed) == 2
+    assert all(not path.exists() for path in removed)

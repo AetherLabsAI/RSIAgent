@@ -157,11 +157,17 @@ def completed_wave(tmp_path):
     memory.mkdir()
     (memory / 'actor.md').write_text('Actor learned after a valid FAIL')
     manifest = _manifest({'actor.md': b'Actor learned after a valid FAIL'})
+    frozen = tmp_path / 'memory_frozen'
+    frozen.mkdir()
+    (frozen / 'actor.md').write_bytes((memory / 'actor.md').read_bytes())
     episode = tmp_path / 'episodes/ep001'
     episode.mkdir(parents=True)
     (episode / 'outcome.json').write_text(json.dumps({
         'project_index': 1, 'wave_index': 1, 'project_id': 'one',
         'terminal_outcome': 'FAIL', 'memory_before': {}, 'memory_after': manifest}))
+    (episode / 'outcome.md').write_text('Original FAIL evidence')
+    (tmp_path / 'events.jsonl').write_text(json.dumps({
+        'event_type': 'PHASE1_WAVE_COMPLETED', 'payload': {'wave': 1, 'total_projects': 1}}) + '\n')
     wave_dir = tmp_path / 'waves/wave_001'
     wave_dir.mkdir(parents=True)
     (wave_dir / 'curriculum_decision.json').write_text(json.dumps({
@@ -173,7 +179,8 @@ def completed_wave(tmp_path):
     transcript = tmp_path / 'curriculum/wave_001/segment_009/transcript.json'
     transcript.parent.mkdir(parents=True)
     transcript.write_text(json.dumps({'messages': history}))
-    state = {'status': 'infra', 'projects': 1, 'waves': 2, 'project_budget': 8,
+    state = {'status': 'infra', 'projects': 1, 'last_project': 1, 'waves': 2,
+             'phase1_parallel_waves': True, 'project_budget': 8,
              'max_parallel': 4, 'checkpoint_projects': [0, 4, 8],
              'target_query_conditioned': True, 'memory_manifest': manifest,
              'target_sha256': hashlib.sha256(b'original target').hexdigest()}
@@ -217,22 +224,37 @@ def test_resume_keeps_memory_curriculum_and_next_wave_number(tmp_path, monkeypat
 
 
 @pytest.mark.parametrize('damage', [
-    'memory', 'partial_episode', 'pending_curriculum', 'quarantine', 'budget', 'ledger'])
+    'memory', 'partial_learning', 'curriculum_symlink', 'quarantine', 'budget', 'ledger',
+    'wave_counter', 'incomplete_history', 'history_roles', 'invalid_assignment'])
 def test_invalid_wave_resume_never_overwrites_preserved_state(tmp_path, damage):
     from explore import phase1_wave as wave
     from explore.e15_loop import E15InfrastructureError
     completed_wave(tmp_path)
     if damage == 'memory':
         (tmp_path / 'memory/actor.md').write_text('drift')
-    elif damage == 'partial_episode':
-        (tmp_path / 'episodes/ep002').mkdir()
-    elif damage == 'pending_curriculum':
-        (tmp_path / 'curriculum/wave_002').mkdir()
-    elif damage in {'quarantine', 'budget'}:
+    elif damage == 'partial_learning':
+        (tmp_path / 'episodes/ep002/memory_distillation').mkdir(parents=True)
+    elif damage == 'curriculum_symlink':
+        (tmp_path / 'curriculum/wave_002').symlink_to(tmp_path, target_is_directory=True)
+    elif damage in {'quarantine', 'budget', 'wave_counter'}:
         state = json.loads((tmp_path / 'state.json').read_text())
-        state['status' if damage == 'quarantine' else 'project_budget'] = (
-            'quarantined' if damage == 'quarantine' else 9)
+        key, value = {'quarantine': ('status', 'quarantined'),
+                      'budget': ('project_budget', 9), 'wave_counter': ('waves', 9)}[damage]
+        state[key] = value
         (tmp_path / 'state.json').write_text(json.dumps(state))
+    elif damage in {'incomplete_history', 'history_roles'}:
+        path = tmp_path / 'curriculum/wave_001/segment_009/transcript.json'
+        transcript = json.loads(path.read_text())
+        if damage == 'incomplete_history':
+            transcript['messages'].pop()
+        else:
+            transcript['messages'][0]['role'] = 'assistant'
+        path.write_text(json.dumps(transcript))
+    elif damage == 'invalid_assignment':
+        path = tmp_path / 'waves/wave_001/curriculum_decision.json'
+        decision = json.loads(path.read_text())
+        del decision['projects'][0]['instruction']
+        path.write_text(json.dumps(decision))
     else:
         path = tmp_path / 'episodes/ep001/outcome.json'
         record = json.loads(path.read_text())

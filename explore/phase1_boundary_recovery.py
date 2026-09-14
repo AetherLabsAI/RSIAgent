@@ -25,6 +25,8 @@ def _require(condition, detail):
 def validate_boundary(lineage: Path, target: str, *, project_budget,
                       checkpoint_projects, max_parallel,
                       target_query_conditioned):
+    from explore.phase1_wave import parse_wave_handoff
+
     state = json.loads((lineage / "state.json").read_text())
     count = state.get("projects")
     # A rejected guest handoff may never have reached the saved transcripts.
@@ -67,6 +69,10 @@ def validate_boundary(lineage: Path, target: str, *, project_budget,
     _require(before == memory, "memory includes a partial/uncommitted project")
 
     last_wave = records[-1]["wave_index"] if records else 0
+    _require(type(last_wave) is int and last_wave >= 0,
+             "invalid completed wave counter")
+    _require(type(state.get("waves")) is int
+             and state["waves"] in {last_wave, last_wave + 1}, "wave counter drifted")
     event_path = lineage / "events.jsonl"
     _require(not count or event_path.is_file(), "completed-wave event log is missing")
     completed = [json.loads(line) for line in (event_path.read_text() if event_path.is_file() else "").splitlines()
@@ -76,23 +82,30 @@ def validate_boundary(lineage: Path, target: str, *, project_budget,
              and completed[-1]["payload"]["total_projects"] == count
              and completed[-1]["payload"]["wave"] == last_wave),
              "counter is not the end of a completed wave")
+    assignments = []
     for wave in range(1, last_wave + 1):
         directory = lineage / "waves" / f"wave_{wave:03d}"
-        decision = json.loads((directory / "curriculum_decision.json").read_text())
-        committed = [r for r in records if r["wave_index"] == wave]
-        _require(decision.get("decision") == "WAVE"
-                 and [r["project_id"] for r in committed]
-                 == [p["id"] for p in decision["projects"]],
-                 "completed wave differs from its authored assignment")
+        decision = parse_wave_handoff((directory / "curriculum_decision.json").read_text())
+        _require(decision is not None and decision.decision == "WAVE",
+                 "invalid completed wave decision")
+        assignments.extend((wave, project.project_id) for project in decision.projects)
         _require((directory / "outcomes.md").is_file(), "wave feedback is missing")
+    _require(assignments == [(r["wave_index"], r["project_id"]) for r in records],
+             "completed waves differ from the ordered project ledger")
 
     history, outcomes = [], ""
     if count:
         transcripts = sorted((lineage / "curriculum" / f"wave_{last_wave:03d}").glob(
             "segment_*/transcript.json"))
         _require(bool(transcripts), "completed Curriculum context is missing")
-        messages = json.loads(transcripts[-1].read_text()).get("messages")
-        _require(isinstance(messages, list) and bool(messages), "invalid Curriculum context")
+        last_transcript = max(transcripts, key=lambda p: int(p.parent.name.split("_")[1]))
+        messages = json.loads(last_transcript.read_text()).get("messages")
+        _require(isinstance(messages, list) and bool(messages)
+                 and len(messages) % 2 == 0, "incomplete Curriculum context")
+        _require(all(isinstance(message, dict)
+                     and message.get("role") == ("user" if index % 2 == 0 else "assistant")
+                     for index, message in enumerate(messages)),
+                 "invalid Curriculum context roles")
         history, _ = _scope_prior_curriculum_visuals(messages)
         outcomes = (lineage / "waves" / f"wave_{last_wave:03d}" / "outcomes.md").read_text()
 
@@ -102,7 +115,8 @@ def validate_boundary(lineage: Path, target: str, *, project_budget,
                                        ("curriculum", "wave_", last_wave)):
         for path in sorted((lineage / directory).glob(prefix + "*")):
             suffix = path.name[len(prefix):]
-            _require(suffix.isdigit() and not path.is_symlink(), "unexpected artifact path")
+            _require(suffix.isdigit() and path.name == f"{prefix}{int(suffix):03d}"
+                     and path.is_dir() and not path.is_symlink(), "unexpected artifact path")
             if int(suffix) <= ceiling:
                 continue
             if directory == "episodes":

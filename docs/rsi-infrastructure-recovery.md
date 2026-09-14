@@ -71,7 +71,18 @@ contains only the changed lines from files that also hold legacy task fixtures:
   same-context segments and preserve incomplete Curriculum fixtures. Includes
   regression tests and updates the legacy fake-call signatures.
 
-These companion patches are **not applied** to the source in this PR. Apply separately
-with `git apply --check <patch>` followed by `git apply <patch>`, then run the
-portable suite and `pytest -q tests/test_phase_emergency_budget.py`. The legacy
-`tests/test_e15_loop.py` suite also depends on historical task fixtures.
+These companion patches are preserved for review and are **not applied** to this
+release. They target the historical source tree and should not be applied directly
+to the company release:
+
+- The practice-contract diff passes `git apply --check`, but the company
+  adapter already routes UNVERIFIED evidence through
+  `explore/practice_evidence_recovery.py` before the patched legacy branch.
+  Its UNVERIFIED override is redundant there, and the evolution flag already
+  defaults to false. The separate legacy contract change remains unapplied.
+- The company handoff runner already accumulates budgets for bounded transport
+  and required publications; Phase 1 wave authoring also preserves unfinished
+  drafts. The budget patch would extend ceilings to other learning phases and
+  change fixture retention. Those remaining behavior changes need a separate
+  protocol review and are not part of this infrastructure integration. The raw
+  diff also fails `git apply --check` against the company release.
