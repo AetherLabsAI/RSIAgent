@@ -95,6 +95,48 @@ def test_zero_project_boot_failure_needs_no_nonexistent_wave_event(tmp_path):
     recovery.archive_pending(root, plan)
 
 
+@pytest.mark.parametrize("count", [0, 1])
+def test_quarantined_boundary_cannot_resume_after_clean_transcript_audits(
+        tmp_path, monkeypatch, count):
+    from config.settings import Config
+    from explore.e15_loop import E15Hooks
+
+    root = boundary(tmp_path, count=count)
+    state = json.loads((root / "state.json").read_text())
+    # A rejected guest handoff is audited before it is saved on the host.
+    # A clean saved transcript cannot clear that original boundary failure.
+    state.update(status="quarantined",
+                 reason="Curriculum wave handoff failed the target boundary")
+    write(root / "state.json", state)
+    preserved = {p.relative_to(root): p.read_bytes()
+                 for p in root.rglob("*") if p.is_file()}
+    started = []
+    hooks = E15Hooks(validate_corpus=lambda *a: None,
+                     audit_text=lambda *a, **k: [],
+                     audit_transcripts=lambda *a, **k: [])
+    decision = wave.WaveDecision(
+        "SATURATED", "mock next decision", (), '{"decision":"SATURATED"}')
+    monkeypatch.setattr(wave, "_push_canonical_memory", lambda *a: None)
+    monkeypatch.setattr(wave, "_author_wave", lambda **k: (decision, []))
+
+    def vm_factory():
+        started.append(True)
+        return SimpleNamespace(close=lambda: None), object()
+
+    with pytest.raises(E15InfrastructureError, match="quarantined"):
+        wave.evolve_parallel_phase1(
+            root=str(root), target_direction="public instruction",
+            actor_cfg=Config(), curriculum_cfg=Config(), memory_cfg=Config(),
+            verifier_control_cfg=Config(), corpus_path="unused", hooks=hooks,
+            vm_factory=vm_factory, project_budget=8,
+            checkpoint_projects=(0, 4, 8), max_parallel=4,
+            target_query_conditioned=True, resume_completed_boundary=True)
+    assert started == []
+    assert not (root / "boundary_recovery").exists()
+    assert {p.relative_to(root): p.read_bytes()
+            for p in root.rglob("*") if p.is_file()} == preserved
+
+
 
 
 def test_broken_guest_restarts_once_and_archives_unscored_attempt(tmp_path, monkeypatch):

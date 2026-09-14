@@ -21,6 +21,8 @@ practice handoffs observed during parallel RSI execution.
 - Explicit `--resume-completed-boundary` recovery validates completed waves,
   memory manifests, protocol fields, and the absence of later phases before
   archiving incomplete work. It preserves the existing project budget.
+  Quarantined lineages are always rejected: saved transcripts may omit the
+  rejected guest artifact, so a clean transcript audit cannot clear quarantine.
 - Release-specific task validation happens after loading the benchmark profile, so a legacy
   exclusion does not reject a task enabled in the 0808 release.
 

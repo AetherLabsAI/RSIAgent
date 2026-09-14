@@ -27,7 +27,11 @@ def validate_boundary(lineage: Path, target: str, *, project_budget,
                       target_query_conditioned):
     state = json.loads((lineage / "state.json").read_text())
     count = state.get("projects")
-    _require(state.get("status") in {"infra", "quarantined"},
+    # A rejected guest handoff may never have reached the saved transcripts.
+    # Re-auditing those transcripts cannot establish that quarantine was false.
+    _require(state.get("status") != "quarantined",
+             "quarantined lineages cannot resume from a completed boundary")
+    _require(state.get("status") == "infra",
              "lineage is not stopped at an infrastructure boundary")
     _require(type(count) is int and count >= 0
              and state.get("last_project") == count, "invalid project counter")

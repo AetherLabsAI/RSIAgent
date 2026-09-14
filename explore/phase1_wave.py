@@ -666,12 +666,6 @@ def evolve_parallel_phase1(
             lineage, target_direction, project_budget=project_budget,
             checkpoint_projects=checkpoint_projects, max_parallel=max_parallel,
             target_query_conditioned=target_query_conditioned)
-        if plan["state"]["status"] == "quarantined":
-            # Recheck the exact original agent surfaces with the repaired audit.
-            # A real boundary violation can never become a resume candidate.
-            for transcript in lineage.glob("**/transcript.json"):
-                if "boundary_recovery" not in transcript.parts:
-                    _audit_agent_artifacts(hooks, str(transcript.parent), target_direction)
         archive_pending(lineage, plan)
         project_index, wave_index = plan["projects"], plan["wave"]
         curriculum_history = plan["history"]
