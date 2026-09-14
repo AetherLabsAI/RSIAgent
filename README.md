@@ -13,7 +13,7 @@ throughout exploration and downstream task execution.
 The paper's central strategy is **broad-then-deep exploration**: first acquire
 diverse experience, then investigate hard cases, hidden constraints, and boundary
 conditions. The resulting memory contains procedures, scripts, and failure lessons
-that a fresh Actor can reuse at test time.
+that the Actor reuses for downstream task execution.
 
 [![RSIAgent framework: parallel Broad Recursive Self-exploration, sequential Deep Recursive Self-exploration, and test-time reuse of frozen memory, illustrated with FreeCAD.](docs/assets/framework.png)](docs/assets/framework.png)
 
@@ -35,19 +35,23 @@ Three agents carry out the recursive learning loop:
   reasoning or memory.
 
 The paper has **two exploration stages followed by test-time memory reuse**.
-The implementation exposes these as three runtime phases:
+**RSI and test-time execution use the same Actor–Verifier framework**, with fixed
+model parameters throughout. At test time, memory is frozen, and Curriculum-driven
+exploration and memory updates are disabled. The implementation exposes these as
+three runtime phases:
 
 | Runtime phase | Paper stage | Learning and execution |
 | --- | --- | --- |
 | **Phase 1** | **Broad Recursive Self-exploration (BRS)** | Curriculum proposes diverse projects. Actors execute and Verifiers check them in parallel from a shared starting memory. After the complete wave, Actors consolidate their experiences in order. |
-| **Phase 2** | **Deep Recursive Self-exploration (DRS)** | Target attempts reveal gaps and fragile successes. Curriculum selects focused practice; each verified experience updates memory before subsequent practice or a fresh target attempt. |
-| **Phase 3** | **Test-time memory reuse** | A fresh Actor uses the frozen memory in a reset environment. The Actor–Verifier loop runs without Curriculum or learning, followed by sealed official evaluation. |
+| **Phase 2** | **Deep Recursive Self-exploration (DRS)** | Target attempts reveal gaps and fragile successes. Curriculum selects focused practice; each verified experience updates memory before subsequent practice or another target attempt. |
+| **Phase 3** | **Test-time memory reuse** | The Actor uses frozen memory to guide task execution within the same Actor–Verifier loop used during RSI. Sealed official evaluation follows task execution and verification. |
 
-Memory is the persistent learning state. Later Actors inherit its files, while
-their interaction histories and environments start fresh. Both grounded successes
-and failures can teach useful lessons. Official benchmark scores are kept outside
-the learning loop. See [Architecture](docs/ARCHITECTURE.md) for the role interfaces,
-wave memory barrier, and stopping rules.
+Memory is the persistent learning state across tasks. Interaction histories and
+task environments are reset between independent attempts; the Agent framework
+remains unchanged. Both grounded successes and failures can teach useful lessons.
+Official benchmark scores are kept outside the learning loop. See
+[Architecture](docs/ARCHITECTURE.md) for the role interfaces, wave memory barrier,
+and stopping rules.
 
 ## Results
 
@@ -133,7 +137,7 @@ cp config/recursive_self_improvement_0808.example.json results/protocols/my_stud
 Edit `run_name`, the public task/query file, and both task lists before launching.
 The example uses T080, an eight-project Phase 1 boundary, up to four concurrent
 practice branches, and `curriculum_review` in Phase 2. In a target-conditioned
-study, development and evaluation name the same task, using fresh environments.
+study, development and evaluation name the same task, with separate environment resets.
 For unseen-task research, use `held_out_generalization` and disjoint task sets.
 
 Inspect the configuration, then run all three stages in sequence:

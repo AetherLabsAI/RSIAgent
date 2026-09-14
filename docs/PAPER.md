@@ -23,7 +23,7 @@ Agent Interfaces appendix:
 | --- | --- |
 | Broad Recursive Self-exploration (BRS) | Phase 1: parallel experience acquisition, followed by ordered memory consolidation |
 | Deep Recursive Self-exploration (DRS) | Phase 2: sequential target attempts and Curriculum-selected practice |
-| Test-time memory reuse | Phase 3: fresh execution with frozen memory and sealed evaluation |
+| Test-time memory reuse | Phase 3: task execution in the shared Actor–Verifier framework with frozen memory and sealed evaluation |
 
 The failure-analysis summary follows the manuscript's Insufficiently Targeted
 Exploration, Incomplete Verification, and Unreliable Memory Consolidation sections.

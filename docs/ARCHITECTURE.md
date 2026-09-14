@@ -51,10 +51,11 @@ explicit comparison flag is available on `run_self_evolving.py`.
 
 ## Phase 3
 
-A fresh Actor receives a frozen memory snapshot. The Actor/Verifier lifecycle
-finishes before the official evaluator runs. There is no Curriculum and no memory
-writeback. Evaluator output is a host artifact and cannot enter a subsequent
-learning phase within that protocol run.
+The Actor uses a frozen memory snapshot within the same Actor–Verifier framework
+used during RSI. Each evaluation starts with a reset interaction history and task
+environment. The Actor/Verifier lifecycle finishes before the official evaluator
+runs. Curriculum and memory updates are disabled. Evaluator output is a host
+artifact and cannot enter a subsequent learning phase within that protocol run.
 
 Frozen configuration hashes, task-release identities, memory hashes, and terminal
 statuses record what was executed. An infrastructure failure is unscored; it is
