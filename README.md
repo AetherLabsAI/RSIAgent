@@ -2,7 +2,12 @@
 
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
-[Paper (Overleaf)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Method](#method) · [Results](#results) · [Installation](#installation) · [Citation](#citation)
+[![Paper: Overleaf](https://img.shields.io/badge/Paper-Overleaf-b31b1b?style=flat)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f)
+[![OSWorld: 108 tasks](https://img.shields.io/badge/OSWorld-108_tasks-007ec6?style=flat)](#benchmarks)
+[![ALE: 67 tasks](https://img.shields.io/badge/ALE-67_tasks-6554c0?style=flat)](#benchmarks)
+[![License: Not selected](https://img.shields.io/badge/License-Not_selected-lightgrey?style=flat)](#license-status)
+
+[Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
 
 RSIAgent is a **training-free framework for recursive self-improvement** in new
 digital environments. It coordinates the Curriculum Agent, Actor Agent, and
@@ -114,9 +119,9 @@ OSWorld stages are Python modules under `benchmarks/osworld/`; see the
 
 ## Installation
 
-Use Python 3.12 and a Linux host with Docker/KVM. VM images, benchmark assets,
-and credentials are obtained separately. Start with the repository and your own
-model API credential:
+Use Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/),
+and a Linux host with Docker and access to `/dev/kvm`. Start with the repository
+and your own model API credential:
 
 ```bash
 git clone https://github.com/AetherLabsAI/RSIAgent.git
@@ -127,6 +132,10 @@ cp .env.example .env
 Fill in `OPENROUTER_API_KEY` in `.env`. Paths default to this checkout and sibling
 benchmark directories. Export `RSIAGENT_ROOT`, `OSWORLD_ROOT`, or
 `RSIAGENT_ENV_FILE` only when using a different layout.
+
+Follow the setup for the benchmark you want to run. All commands below start
+from the `RSIAgent` directory unless a `cd` is shown. VM images and benchmark
+assets are downloaded separately.
 
 ### OSWorld
 
@@ -141,13 +150,21 @@ uv sync --frozen
 uv pip install --python .venv/bin/python -r ../RSIAgent/requirements.txt
 source .venv/bin/activate
 cd ../RSIAgent
+```
+
+Prepare the benchmark assets and audit files, then check the VM:
+
+```bash
 python tools/prepare_osworld_v2_release.py
 python tools/build_p2_corpus.py
 python tools/exam_fence.py build
+python tools/smoke_osworld.py --output results/smoke/osworld
 ```
 
-The audit files under `results/` are host-only rejection data. They must never
-enter an Agent prompt or memory.
+Keep this environment active for the OSWorld batch commands below. In a new
+shell, activate it with `source ../OSWorld-V2/.venv/bin/activate`.
+The audit files under `results/` stay on the host and never enter Agent prompts
+or memory.
 
 ### ALE
 
@@ -164,40 +181,58 @@ python3 scripts/setup_ale.py
 Each preparation downloads only the selected OS image. Linux requires about
 167 GiB and Windows about 157 GiB, plus download and VM working space. Use
 `--cache /path/with/space` consistently for preparation, smoke tests, and runs.
-See [ALE operations](docs/ALE.md) for options and the upstream guide.
+
+Check both guest types before running the full CPU cohort:
+
+```bash
+../agents-last-exam/.venv/bin/python run_ale.py smoke \
+  --os linux --output results/smoke/ale_linux
+../agents-last-exam/.venv/bin/python run_ale.py smoke \
+  --os windows --output results/smoke/ale_windows
+```
+
+ALE requires a successful smoke for each requested OS on the current source and
+runner image. Use a new `--output` directory when repeating a smoke. See
+[ALE operations](docs/ALE.md) for storage options and the upstream guide.
 
 ## Run batches
 
-OSWorld runs the full pinned cohort without personnel assignments or shards:
+Choose `--arm baseline` for task execution without RSI, `--arm rsi` for learning
+followed by frozen-memory evaluation, or `--arm both` to run both.
+
+### OSWorld
+
+Inspect the full 108-task plan, then run it:
 
 ```bash
-python run_osworld.py --arm baseline --name baseline_run
-python run_osworld.py --arm rsi --name rsi_run
+python run_osworld.py --arm both --name osworld_run_01 --dry-run
+python run_osworld.py --arm both --name osworld_run_01 --concurrency 1
 ```
 
-Use `--arm both` for both arms, `--concurrency N` for independent task lineages,
-and `--dry-run` to inspect the plan. A task failure stops its remaining phases;
-other tasks continue. Logs and status are under `results/batches/<name>/`.
-Existing outputs are never overwritten.
+`--dry-run` prints the plan without starting VMs, making model calls, or writing
+outputs. Logs and task status are under `results/batches/<name>/`. A task failure
+stops its remaining phases; other tasks continue. Choose a new `--name` for each
+batch because existing outputs are never overwritten.
 
-ALE's runner is already a batch entrypoint:
+### ALE
+
+Inspect the cohort, run the supported tasks, and generate a report:
 
 ```bash
+../agents-last-exam/.venv/bin/python run_ale.py plan --arm both
 ../agents-last-exam/.venv/bin/python run_ale.py run \
-  --arm both --output results/ale/run_01
+  --arm both --output results/ale/run_01 --concurrency 1
 ../agents-last-exam/.venv/bin/python run_ale.py report \
   --runs results/ale/run_01 --output results/ale/report_01
 ```
 
-ALE requires a successful smoke for each requested OS on the current source and
-runner image. Its report keeps missing and GPU-pending results explicit and
-rejects duplicate scored attempts.
+Use a new `--output` directory for each run. The report contains `tasks.csv` and
+`summary.json`, keeps missing and GPU-pending results explicit, and rejects
+duplicate scored attempts.
 
-For an individual OSWorld study, edit `config/osworld/rsi.example.json` and run
-`bash scripts/run_rsi.sh path/to/protocol.json`. The example preserves an
-eight-project Phase 1 boundary, four concurrent practice branches, and
-`curriculum_review` in Phase 2. Task-conditioned adaptation and held-out
-experiments are distinct study designs; see [operations](docs/OPERATIONS.md).
+Both entrypoints run batches directly. Begin with `--concurrency 1`; raise it
+when the host has capacity for additional independent task lineages. For custom
+OSWorld protocols and recovery, see [operations](docs/OPERATIONS.md).
 
 ## Validation
 
@@ -209,18 +244,11 @@ uv pip install --python .venv/bin/python -r requirements-dev.txt
 .venv/bin/python tools/check_rsi_release.py
 ```
 
-Before a desktop run, execute the real VM smoke in the relevant environment:
-
-```bash
-python tools/smoke_osworld.py --output results/smoke/osworld
-../agents-last-exam/.venv/bin/python run_ale.py smoke --os linux
-../agents-last-exam/.venv/bin/python run_ale.py smoke --os windows
-```
-
-These checks exercise transport, immutable memory, candidate replay, Verifier
-isolation, and checkpoint rollback using synthetic files. They make no model or
-official grader calls. They validate runtime mechanics; reproducing benchmark
-scores requires complete experiments with the pinned configuration.
+The VM smoke commands in the installation steps check transport, immutable
+memory, candidate replay, Verifier isolation, and checkpoint rollback using
+synthetic files. They make no model or official grader calls. Smoke success
+validates runtime mechanics; reproducing benchmark scores requires complete
+experiments with the pinned configuration.
 
 ## Documentation
 
