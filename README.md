@@ -5,15 +5,15 @@
 [Paper (Overleaf)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Method](#method) · [Results](#results) · [Installation](#installation) · [Citation](#citation)
 
 RSIAgent is a **training-free framework for recursive self-improvement** in new
-digital environments. It coordinates Curriculum, Actor, and Verifier agents to
-discover how an environment works, check what they learn against actual execution,
+digital environments. It coordinates the Curriculum Agent, Actor Agent, and
+Verifier Agent to discover how an environment works, check what they learn against actual execution,
 and retain reusable knowledge in persistent memory. Model parameters stay fixed
 throughout exploration and downstream task execution.
 
 The paper's central strategy is **broad-then-deep exploration**: first acquire
 diverse experience, then investigate hard cases, hidden constraints, and boundary
 conditions. The resulting memory contains procedures, scripts, and failure lessons
-that the Actor reuses for downstream task execution.
+that the Actor Agent reuses for downstream task execution.
 
 [![RSIAgent framework: parallel Broad Recursive Self-exploration, sequential Deep Recursive Self-exploration, and test-time reuse of frozen memory, illustrated with FreeCAD.](docs/assets/framework.png)](docs/assets/framework.png)
 
@@ -25,26 +25,26 @@ Click the figure for full resolution. [Figure provenance](docs/PAPER.md#figure-p
 
 Three agents carry out the recursive learning loop:
 
-- **Curriculum** chooses informative exploration tasks using prior outcomes and
+- **Curriculum Agent** chooses informative exploration tasks using prior outcomes and
   accumulated knowledge, then decides whether further practice is useful.
-- **Actor** interacts with software through executable Python or Bash programs
-  and visual observations. After verification, the same Actor distills its
+- **Actor Agent** interacts with software through executable Python or Bash programs
+  and visual observations. After verification, the same Actor Agent distills its
   experience and reconciles it with existing memory.
-- **Verifier** independently inspects task requirements and the resulting
-  environment. Its feedback grounds learning; it cannot read the Actor's private
-  reasoning or memory.
+- **Verifier Agent** independently inspects task requirements and the resulting
+  environment. Its feedback grounds learning; it cannot read the Actor Agent's
+  private reasoning or memory.
 
 The paper has **two exploration stages followed by test-time memory reuse**.
-**RSI and test-time execution use the same Actor–Verifier framework**, with fixed
-model parameters throughout. At test time, memory is frozen, and Curriculum-driven
-exploration and memory updates are disabled. The implementation exposes these as
-three runtime phases:
+**RSI and test-time execution use the same agent framework**, with fixed model
+parameters throughout. At test time, memory is frozen, and the Curriculum Agent
+and memory updates are disabled. The implementation exposes these as three
+runtime phases:
 
 | Runtime phase | Paper stage | Learning and execution |
 | --- | --- | --- |
-| **Phase 1** | **Broad Recursive Self-exploration (BRS)** | Curriculum proposes diverse projects. Actors execute and Verifiers check them in parallel from a shared starting memory. After the complete wave, Actors consolidate their experiences in order. |
-| **Phase 2** | **Deep Recursive Self-exploration (DRS)** | Target attempts reveal gaps and fragile successes. Curriculum selects focused practice; each verified experience updates memory before subsequent practice or another target attempt. |
-| **Phase 3** | **Test-time memory reuse** | The Actor uses frozen memory to guide task execution within the same Actor–Verifier loop used during RSI. Sealed official evaluation follows task execution and verification. |
+| **Phase 1** | **Broad Recursive Self-exploration (BRS)** | The Curriculum Agent proposes diverse projects. Actor Agents execute and Verifier Agents check them in parallel from a shared starting memory. After the complete wave, Actor Agents consolidate their experiences in order. |
+| **Phase 2** | **Deep Recursive Self-exploration (DRS)** | Target attempts reveal gaps and fragile successes. The Curriculum Agent selects focused practice; each verified experience updates memory before subsequent practice or another target attempt. |
+| **Phase 3** | **Test-time memory reuse** | The Actor Agent uses frozen memory to guide task execution, interacting with the Verifier Agent through the same action–verification loop used during RSI. Sealed official evaluation follows task execution and verification. |
 
 Memory is the persistent learning state across tasks. Interaction histories and
 task environments are reset between independent attempts; the Agent framework
@@ -56,7 +56,7 @@ and stopping rules.
 ## Results
 
 The manuscript reports these **mean partial-credit scores (%)** for the shared
-Actor–Verifier harness with and without RSI:
+harness coordinating the Actor Agent and Verifier Agent, with and without RSI:
 
 | Benchmark and reporting coverage | RSIAgent w/o RSI | RSIAgent |
 | --- | ---: | ---: |
@@ -165,28 +165,30 @@ paths referenced by the phase results. See [operation and recovery](docs/OPERATI
 
 ## Defaults and boundaries
 
-- The Actor owns memory updates after valid Verifier PASS and FAIL outcomes.
+- The Actor Agent owns memory updates after valid Verifier Agent PASS and FAIL outcomes.
   An infrastructure failure or `UNVERIFIED` outcome is not a learning verdict.
-- A Phase 1 wave is a memory barrier: sibling Actors see the same frozen memory,
+- A Phase 1 wave is a memory barrier: sibling Actor Agents see the same frozen memory,
   and all branch verdicts precede serial memory commits. The eight-project budget
   is checked after complete waves and can be exceeded by the final wave.
 - Phase 2 defaults to `curriculum_review`: a target PASS is learned, then
-  Curriculum reviews whether to continue. `READY_FOR_TARGET` after practice
+  the Curriculum Agent reviews whether to continue. `READY_FOR_TARGET` after practice
   requests another target attempt. It does not bypass target verification.
   `verifier_pass` is an explicit alternative stopping policy.
-- Curriculum's direct Phase 2 memory access defaults to `read_only`. The direct
-  Phase 2 runner also exposes `--phase2-curriculum-memory-access none` for separate
-  comparison lineages. This disables Curriculum's direct access, not the Actor's.
+- The Curriculum Agent's direct Phase 2 memory access defaults to `read_only`.
+  The direct Phase 2 runner also exposes `--phase2-curriculum-memory-access none`
+  for separate comparison lineages. The Actor Agent retains memory access in
+  these comparisons.
 - The default DRS lifecycle has no two-project cap. The paper's deep-only
-  ablations used at most two Curriculum practice projects through separate
-  experiment controls, which are not a public runner API. Target attempts and
-  their memory updates do not count as practice projects.
+  ablations used at most two practice projects selected by the Curriculum Agent,
+  through separate experiment controls that are not a public runner API. Target
+  attempts and their memory updates do not count as practice projects.
 - Official evaluation is unavailable during learning. Phase 3 uses frozen memory
   with no host writeback and no evaluation feedback into learning.
 
-The supplied role profiles use GLM-5.3 for the Actor and Kimi K3 for Curriculum and
-verification. The target Actor watchdog is ten hours per Actor run; this is not a
-ten-hour limit on the whole study. Configuration hashes and evaluator release
+The supplied role profiles use GLM-5.3 for the Actor Agent and Kimi K3 for the
+Curriculum Agent and Verifier Agent. The target Actor Agent watchdog is ten hours
+per Actor Agent run; this is not a ten-hour limit on the whole study.
+Configuration hashes and evaluator release
 bindings are checked before evaluation. Change profiles in a new, explicitly
 recorded protocol rather than editing a running study's locked configuration.
 

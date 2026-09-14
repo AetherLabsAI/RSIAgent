@@ -22,8 +22,8 @@ Agent Interfaces appendix:
 | Paper terminology | Runtime |
 | --- | --- |
 | Broad Recursive Self-exploration (BRS) | Phase 1: parallel experience acquisition, followed by ordered memory consolidation |
-| Deep Recursive Self-exploration (DRS) | Phase 2: sequential target attempts and Curriculum-selected practice |
-| Test-time memory reuse | Phase 3: task execution in the shared Actor–Verifier framework with frozen memory and sealed evaluation |
+| Deep Recursive Self-exploration (DRS) | Phase 2: sequential target attempts and practice selected by the Curriculum Agent |
+| Test-time memory reuse | Phase 3: the Actor Agent and Verifier Agent use the shared framework with frozen memory and sealed evaluation |
 
 The failure-analysis summary follows the manuscript's Insufficiently Targeted
 Exploration, Incomplete Verification, and Unreliable Memory Consolidation sections.
@@ -78,12 +78,12 @@ the historical baselines, single-stage scores, and two historical evaluation
 draws averaged for each full-RSI result.
 
 The broad-only condition evaluates preserved BRS memory directly. The deep-only
-condition starts with empty memory and allows **at most two Curriculum practice
-projects**; target attempts and memory updates are additional. The Actor retains
-memory access, while Curriculum does not directly read its memory in those
-comparisons.
+condition starts with empty memory and allows **at most two practice projects
+selected by the Curriculum Agent**; target attempts and memory updates are additional.
+The Actor Agent retains memory access, while the Curriculum Agent does not
+directly read its memory in those comparisons.
 
 Those ablations used separate experiment controls. The released default instead
-uses `curriculum_review` and a read-only Curriculum memory view, with no
+uses `curriculum_review` and a read-only memory view for the Curriculum Agent, with no
 two-project cap. See [Architecture](ARCHITECTURE.md) and [Operations](OPERATIONS.md)
 for the supported runner interfaces.

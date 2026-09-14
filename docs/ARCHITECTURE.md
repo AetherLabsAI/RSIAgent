@@ -7,55 +7,58 @@ memory learning, and final benchmark measurement.
 
 | Role | Inputs and authority |
 | --- | --- |
-| Actor | Operates the guest, reads its durable memory, and distills its own verified experiences. |
-| Verifier | Inspects candidate evidence with its own persistent context across revisions of one task/project; issues PASS, FAIL, or an unresolved outcome. |
-| Curriculum | Reviews learning progress and selects the next practice or target attempt; does not grade candidates or author Actor memory. |
+| Actor Agent | Operates the guest, reads its durable memory, and distills its own verified experiences. |
+| Verifier Agent | Inspects candidate evidence with its own persistent context across revisions of one task/project; issues PASS, FAIL, or an unresolved outcome. |
+| Curriculum Agent | Reviews learning progress and selects the next practice or target attempt; does not grade candidates or author the Actor Agent's memory. |
 | Host harness | Enforces isolation, records artifacts, commits memory at valid boundaries, and invokes the sealed official evaluator. |
 
-Verifier inspection uses a rollback-protected candidate with Actor-private
-artifacts hidden. Its guest-local mutations are rolled back before Actor work
-resumes. This does not roll back shared remote services; use independent service
+The Verifier Agent inspects a rollback-protected candidate with the Actor Agent's
+private artifacts hidden. Its guest-local mutations are rolled back before the
+Actor Agent's work resumes. This does not roll back shared remote services; use independent service
 accounts or serialize studies that share mutable external state.
 
 ## Phase 1
 
-Curriculum authors a wave of practice projects. Each branch starts from the same
-pre-wave memory snapshot, independently performs its work, and receives a grounded
-Verifier verdict. All branches must finish valid verification before the same
-Actors distill their experiences, serially in the authored order. The next wave
+The Curriculum Agent authors a wave of practice projects. Each branch starts from
+the same pre-wave memory snapshot, independently performs its work, and receives a grounded
+Verifier Agent verdict. All branches must finish valid verification before the same
+Actor Agents distill their experiences, serially in the authored order. The next wave
 starts only after those memory commits are durable.
 
 An incomplete or quarantined branch blocks the wave. Its unpublished memory is
-not merged. Budget checks happen at complete-wave boundaries; Curriculum can
+not merged. Budget checks happen at complete-wave boundaries; the Curriculum Agent can
 declare saturation earlier. Distribution-guided exploration and target-conditioned
 prerequisite exploration are separate study designs.
 
 ## Phase 2
 
 Phase 2 begins with an actual development-target attempt. Both PASS and FAIL can
-ground same-Actor learning. Under the default `curriculum_review`, Curriculum
-reviews the learned experience even after a target PASS. It can request more
+ground learning by the Actor Agent that performed the attempt. Under the default
+`curriculum_review`, the Curriculum Agent reviews the learned experience even
+after a target PASS. It can request more
 practice or return readiness. If practice occurs, a fresh attempt on the unchanged
-target is required before successful natural completion. Curriculum readiness is
-not a task correctness verdict.
+target is required before successful natural completion. Readiness from the
+Curriculum Agent is not a task correctness verdict.
 
 The alternative `verifier_pass` policy stops after a target PASS and its memory
 commit. Neither policy turns an infrastructure error into a PASS or FAIL.
 `STALLED` and budget exits must remain distinguishable from successful convergence.
 
-Curriculum context persists within the target lineage. Its default direct memory
-view is read-only. The `none` comparison setting removes that direct view while
-retaining normal trajectory and verifier feedback. Actor memory access remains
-enabled. The public protocol orchestrator currently uses the default view; the
+The Curriculum Agent's context persists within the target lineage. Its default
+direct memory view is read-only. The `none` comparison setting removes that direct
+view while retaining normal trajectory and Verifier Agent feedback. The Actor
+Agent's memory access remains enabled. The public protocol orchestrator currently
+uses the default view; the
 explicit comparison flag is available on `run_self_evolving.py`.
 
 ## Phase 3
 
-The Actor uses a frozen memory snapshot within the same Actor–Verifier framework
+The Actor Agent uses a frozen memory snapshot within the same agent framework
 used during RSI. Each evaluation starts with a reset interaction history and task
-environment. The Actor/Verifier lifecycle finishes before the official evaluator
-runs. Curriculum and memory updates are disabled. Evaluator output is a host
-artifact and cannot enter a subsequent learning phase within that protocol run.
+environment. The interaction between the Actor Agent and Verifier Agent finishes
+before the official evaluator runs. The Curriculum Agent and memory updates are
+disabled. Evaluator output is a host artifact and cannot enter a subsequent
+learning phase within that protocol run.
 
 Frozen configuration hashes, task-release identities, memory hashes, and terminal
 statuses record what was executed. An infrastructure failure is unscored; it is
@@ -71,7 +74,7 @@ must be reported separately from unmodified official evaluation.
 | `run_self_evolving.py`, `core/self_evolving_loop.py` | Phase 2 target/practice lifecycle |
 | `run_task.py` | Frozen-memory task execution and sealed evaluation |
 | `core/`, `llm/`, `env/` | Agent runtime, model transport, and guest interface |
-| `explore/` | Curriculum, memory, provisioning, and recovery validation |
+| `explore/` | Curriculum Agent orchestration, memory, provisioning, and recovery validation |
 | `config/` | Role profiles, runtime paths, and benchmark locks |
 | `tools/` | Preparation, audit, and batch utilities |
 
