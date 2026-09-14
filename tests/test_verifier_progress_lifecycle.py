@@ -24,7 +24,7 @@ def test_task_runner_preserves_only_blocked_verification(monkeypatch, tmp_path, 
     monkeypatch.setenv("OSWORLD_ROOT", str(benchmark))
     monkeypatch.delenv("RSIAGENT_CONFIG", raising=False)
     monkeypatch.setattr(sys, "path", list(sys.path))
-    monkeypatch.setattr(sys, "argv", ["run_task.py", "task_unit", "--seed", "17"])
+    monkeypatch.setattr(sys, "argv", ["benchmarks/osworld/task.py", "task_unit", "--seed", "17"])
     monkeypatch.setattr(signal, "signal", lambda *_args: None)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("benchmarks.osworld.runtime._install_paths", lambda: None)
@@ -65,7 +65,7 @@ def test_task_runner_preserves_only_blocked_verification(monkeypatch, tmp_path, 
         module.__dict__.update(values)
         monkeypatch.setitem(sys.modules, name, module)
 
-    namespace = runpy.run_path(str(repo / "run_task.py"))
+    namespace = runpy.run_path(str(repo / "benchmarks/osworld/task.py"))
     main = namespace["main"]
     state = main.__globals__
     state["RSIAGENT_ROOT"] = tmp_path

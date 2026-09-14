@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from config.settings import Config
-import run_recursive_improvement as protocol
-import run_phase2 as runner
+import benchmarks.osworld.pipeline as protocol
+import benchmarks.osworld.phase2 as runner
 
 
 REPO = Path(__file__).resolve().parents[1]

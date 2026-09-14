@@ -1,13 +1,13 @@
 """Constraint #0 audit — mechanical no-leakage checks. Run on EVERY prompt change.
 
 1. The agent packages (core/, env/, llm/, config/) must not reference the benchmark:
-   no imports or use of the env/task/grader plumbing (those live only in run_task.py).
+   no imports or use of the env/task/grader plumbing (those live only in benchmarks/osworld/task.py).
 2. The audited surfaces (core/actor.py + core/verifier.py + core/eyes.py — every file
    holding model-facing prompt literals) must contain no task-derived token from
    tests/blocklist_012.txt. The blocklist IS grader/setup-derived, but it is
    reject-only: it never enters the agent; it can only force prompts to be MORE
    general.
-3. run_task.py must call the grader exactly once and hand the agent only the
+3. benchmarks/osworld/task.py must call the grader exactly once and hand the agent only the
    instruction string.
 """
 import ast
@@ -61,9 +61,9 @@ def test_prompts_contain_no_task_tokens():
 
 
 def test_runner_seals_the_grader():
-    src = open(os.path.join(ROOT, "run_task.py")).read()
+    src = open(os.path.join(ROOT, "benchmarks/osworld/task.py")).read()
     calls = src.count(".evaluate(")
-    assert calls == 1, f"run_task.py must call the grader exactly once (found {calls})"
+    assert calls == 1, f"benchmarks/osworld/task.py must call the grader exactly once (found {calls})"
     # P2-v2: the loop may additionally receive opening_extra — but ONLY the
     # agent's OWN practice memory (cfg.env_memory_dir -> memory_preamble),
     # never anything task_config-derived. The seal's real property: nothing
@@ -75,7 +75,7 @@ def test_runner_seals_the_grader():
         and isinstance(node.func, ast.Name)
         and node.func.id == "run_with_resume"]
     assert len(calls_to_loop) == 1, \
-        "run_task must invoke run_with_resume exactly once"
+        "task runner must invoke run_with_resume exactly once"
     positional = calls_to_loop[0].args
     assert [node.id for node in positional[:4]
             if isinstance(node, ast.Name)] == ["instruction", "vm", "cfg", "sink"], \

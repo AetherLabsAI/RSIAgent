@@ -3,7 +3,7 @@
 This module knows nothing about benchmark tasks, graders, scores, or candidate state.
 It only retries an opaque operation after the Actor/Verifier lifecycle has ended.
 Keeping the retry here makes the no-abandonment policy testable without importing the
-sealed benchmark boundary from :mod:`run_task`.
+sealed benchmark boundary from :mod:`benchmarks.osworld.task`.
 """
 from __future__ import annotations
 

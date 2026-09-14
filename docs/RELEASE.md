@@ -6,6 +6,12 @@ responsibility; benchmark adapters live under `benchmarks/osworld/` and
 `benchmarks/ale/`. Role profiles live under `config/roles/`, with one current
 configuration set per benchmark.
 
+The root exposes `run_osworld.py` and `run_ale.py`. OSWorld's phase runners,
+pipeline, task execution, and evaluator corrections live in `benchmarks/osworld/`.
+The directory reorganization preserves the existing batch arguments, phase
+ordering, configuration values, and runtime behavior; internal subprocesses use
+Python module entrypoints.
+
 ## Provenance
 
 - Public repository base: `e7f713028a484ac10747bb68fb6c0bf61502a7cb`.

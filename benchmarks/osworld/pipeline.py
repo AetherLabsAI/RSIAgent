@@ -389,7 +389,7 @@ def execute_phase1(spec: dict[str, Any], *, resume_completed_boundary=False) -> 
         return result
     cfg = resolved["configs"]["phase1"]
     command = [
-        sys.executable, str(RSIAGENT_ROOT / "run_phase1_exploration.py"),
+        sys.executable, "-m", "benchmarks.osworld.phase1",
         "--run-name", spec["run_name"],
         "--distribution-file", str(resolved["distribution"]),
         "--project-budget", str(spec["phase1"]["project_budget"]),
@@ -441,7 +441,7 @@ def execute_phase2(spec: dict[str, Any]) -> dict[str, Any]:
                        / f"attempt_{seed:04d}" / "result.json")
         if not result_path.is_file():
             command = [
-                sys.executable, str(RSIAGENT_ROOT / "run_phase2.py"), task,
+                sys.executable, "-m", "benchmarks.osworld.phase2", task,
                  "--protocol-run", spec["run_name"],
                 "--seed", str(seed), "--initial-memory", str(memory_path),
                 "--phase2-stop-policy", stop_policy,
@@ -560,7 +560,7 @@ def execute_phase3(spec: dict[str, Any]) -> dict[str, Any]:
                        / f"seed{seed}_{tag}" / "result.json")
         if not result_path.is_file():
             command = [
-                sys.executable, str(RSIAGENT_ROOT / "run_task.py"), task,
+                sys.executable, "-m", "benchmarks.osworld.task", task,
                 "--seed", str(seed), "--tag", tag,
                 "--config", str(cfg), "--memory-dir", str(frozen),
             ]

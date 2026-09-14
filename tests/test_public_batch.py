@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts import run_osworld_batch as batch
+import run_osworld as batch
 from scripts import setup_ale
 from benchmarks.ale.protocol import protocol, select_tasks
 

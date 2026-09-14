@@ -89,6 +89,29 @@ Only the current runtime is included. Both integrations use the same Actor,
 Verifier, Curriculum, and memory protocol. Benchmark setup and grading remain
 outside the learning process.
 
+## Repository layout
+
+```text
+run_osworld.py        OSWorld batch entrypoint
+run_ale.py            ALE preparation, execution, and reporting
+benchmarks/
+  osworld/           OSWorld stages, VM adapter, and evaluation
+  ale/               ALE host, worker, and VM adapters
+core/                Shared Actor and Verifier runtime
+explore/             Curriculum, learning, memory, and recovery
+env/                 Shared guest transport and isolation
+llm/                 Model clients
+config/              Role profiles and benchmark configurations
+scripts/             Setup and individual-study helpers
+tools/               Preparation, smoke checks, and recovery utilities
+tests/               Regression tests
+docs/                Architecture and operations
+```
+
+The two root entrypoints are the starting point for benchmark runs. Internal
+OSWorld stages are Python modules under `benchmarks/osworld/`; see the
+[source map](docs/ARCHITECTURE.md#source-map) for their responsibilities.
+
 ## Installation
 
 Use Python 3.12 and a Linux host with Docker/KVM. VM images, benchmark assets,
@@ -148,8 +171,8 @@ See [ALE operations](docs/ALE.md) for options and the upstream guide.
 OSWorld runs the full pinned cohort without personnel assignments or shards:
 
 ```bash
-python scripts/run_osworld_batch.py --arm baseline --name baseline_run
-python scripts/run_osworld_batch.py --arm rsi --name rsi_run
+python run_osworld.py --arm baseline --name baseline_run
+python run_osworld.py --arm rsi --name rsi_run
 ```
 
 Use `--arm both` for both arms, `--concurrency N` for independent task lineages,

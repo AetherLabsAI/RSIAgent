@@ -49,7 +49,7 @@ direct memory view is read-only. The `none` comparison setting removes that dire
 view while retaining normal trajectory and Verifier Agent feedback. The Actor
 Agent's memory access remains enabled. The public protocol orchestrator currently
 uses the default view; the
-explicit comparison flag is available on `run_phase2.py`.
+explicit comparison flag is available through `python -m benchmarks.osworld.phase2`.
 
 ## Phase 3
 
@@ -69,14 +69,22 @@ must be reported separately from unmodified official evaluation.
 
 | Path | Responsibility |
 | --- | --- |
-| `run_recursive_improvement.py` | Protocol validation and three-stage orchestration |
-| `run_phase1_exploration.py`, `explore/phase1_wave.py` | Phase 1 exploration and wave barrier |
-| `run_phase2.py`, `core/self_evolving_loop.py` | Phase 2 target/practice lifecycle |
-| `run_task.py` | Frozen-memory task execution and sealed evaluation |
+| `run_osworld.py`, `run_ale.py` | Public benchmark entrypoints |
+| `benchmarks/osworld/pipeline.py` | Protocol validation and three-stage orchestration |
+| `benchmarks/osworld/phase1.py`, `explore/phase1_wave.py` | Phase 1 exploration and wave barrier |
+| `benchmarks/osworld/phase2.py`, `core/self_evolving_loop.py` | Phase 2 target/practice lifecycle |
+| `benchmarks/osworld/task.py` | Frozen-memory task execution and sealed evaluation |
+| `benchmarks/osworld/evaluator_corrections.py` | Explicit, source-bound evaluator corrections |
 | `core/`, `llm/`, `env/` | Agent runtime, model transport, and guest interface |
 | `explore/` | Curriculum Agent orchestration, memory, provisioning, and recovery validation |
 | `config/` | Role profiles, runtime paths, and benchmark locks |
-| `tools/` | Preparation, audit, and batch utilities |
+| `scripts/` | Environment setup and individual-study helpers |
+| `tools/` | Preparation, smoke checks, and recovery utilities |
+
+Internal OSWorld stages run as modules from the checkout, for example
+`python -m benchmarks.osworld.pipeline --help`. Both the batch entrypoint and
+the individual-study helper launch them this way, keeping imports independent
+of the module's directory.
 
 The OSWorld adapter lives under `benchmarks/osworld/`; ALE lives under
 `benchmarks/ale/`. ALE's outer process owns provisioning and grading, while a

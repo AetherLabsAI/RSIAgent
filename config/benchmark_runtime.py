@@ -1,7 +1,7 @@
 """Bind a direct benchmark run to the runtime declared by its config lock.
 
 The batch runner exports evaluator and task-user-simulator routing
-before it starts :mod:`run_task`.  Researchers also launch individual tasks
+before it starts :mod:`benchmarks.osworld.task`.  Researchers also launch individual tasks
 directly while recovering or rerunning a result.  A config such as
 ``foo.yaml`` may therefore carry a sibling ``foo.lock.json``; this module makes
 that lock authoritative in both launch paths.
@@ -69,7 +69,7 @@ def configure_associated_benchmark_lock(
 
     ``RSIAGENT_BENCHMARK_LOCK`` explicitly selects a lock.  Otherwise ``foo.yaml``
     discovers ``foo.lock.json``.  Configs without an associated lock preserve
-    the historical generic ``run_task.py`` behavior.
+    the historical generic ``benchmarks/osworld/task.py`` behavior.
     """
     if config_path is None:
         return None

@@ -7,7 +7,7 @@ import pytest
 from config.settings import Config, load
 from explore import unified_evolution as U
 from explore.charter import self_evolving_curriculum_charter
-import run_phase2 as runner
+import benchmarks.osworld.phase2 as runner
 from test_unified_evolution import _VM, _hooks
 
 

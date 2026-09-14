@@ -11,8 +11,8 @@ from config.settings import Config, load
 from core.self_evolving_loop import SelfEvolvingLoopHooks
 from explore.charter import phase1_wave_curriculum_charter
 from explore.phase1_wave import parse_wave_handoff
-import run_recursive_improvement as protocol
-import run_phase2 as phase2_runner
+import benchmarks.osworld.pipeline as protocol
+import benchmarks.osworld.phase2 as phase2_runner
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -228,7 +228,7 @@ def test_phase2_selects_release_specific_benchmark_provenance():
         "osworld-v2-2026.08.08"]
     assert profile.name == \
         "baseline.lock.json"
-    source = (REPO / "run_recursive_improvement.py").read_text(
+    source = (REPO / "benchmarks/osworld/pipeline.py").read_text(
         encoding="utf-8")
     assert '"--benchmark-profile", str(benchmark_profile)' in source
 
@@ -248,7 +248,7 @@ def test_explicit_practice_verifier_controls_full_agentic_verifier(tmp_path):
 
 
 def test_phase2_learns_from_both_outcomes_with_explicit_pass_policy():
-    source = (REPO / "run_phase2.py").read_text(encoding="utf-8")
+    source = (REPO / "benchmarks/osworld/phase2.py").read_text(encoding="utf-8")
     assert "learn_on_pass=True" in source
     assert 'args.phase2_stop_policy == "curriculum_review"' in source
     assert "phase2_outcome_protocol" in source
@@ -257,7 +257,7 @@ def test_phase2_learns_from_both_outcomes_with_explicit_pass_policy():
 
 
 def test_phase3_runner_has_explicit_copy_in_only_memory_transport():
-    source = (REPO / "run_task.py").read_text(encoding="utf-8")
+    source = (REPO / "benchmarks/osworld/task.py").read_text(encoding="utf-8")
     assert '"--memory-dir"' in source
     assert '"host_writeback": False' in source
     assert "pull_memory" not in source
@@ -265,13 +265,13 @@ def test_phase3_runner_has_explicit_copy_in_only_memory_transport():
 
 
 def test_learning_entrypoints_do_not_call_official_evaluator():
-    phase1 = (REPO / "run_phase1_exploration.py").read_text(encoding="utf-8")
+    phase1 = (REPO / "benchmarks/osworld/phase1.py").read_text(encoding="utf-8")
     orchestrator = (
-        REPO / "run_recursive_improvement.py").read_text(encoding="utf-8")
+        REPO / "benchmarks/osworld/pipeline.py").read_text(encoding="utf-8")
     assert ".evaluate(" not in phase1
     assert "task_loader" not in phase1
     assert '"official_evaluator_calls": 0' in phase1
-    # The orchestrator delegates the sole scored phase to run_task; it never owns
+    # The orchestrator delegates the sole scored phase to the task runner; it never owns
     # or serializes an evaluator object itself.
     assert ".evaluate(" not in orchestrator
     assert "task_loader" not in orchestrator

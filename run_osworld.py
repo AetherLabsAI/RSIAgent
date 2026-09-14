@@ -13,14 +13,11 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from benchmarks.osworld.task_surface import load_public_task_surface
 from config.runtime_paths import resolve_osworld_root
 from explore.commit import normalize_instruction_for_corpus
 
+ROOT = Path(__file__).resolve().parent
 LOCK = ROOT / "config/osworld/baseline.lock.json"
 TEMPLATE = ROOT / "config/osworld/rsi.example.json"
 
@@ -48,7 +45,8 @@ def build_plan(name, arm, *, tasks=None, osworld_root=None):
                 [
                     sys.executable,
                     "-u",
-                    str(ROOT / "run_task.py"),
+                    "-m",
+                    "benchmarks.osworld.task",
                     task,
                     "--config",
                     str(ROOT / "config/osworld/baseline.yaml"),
@@ -85,7 +83,8 @@ def build_plan(name, arm, *, tasks=None, osworld_root=None):
                     [
                         sys.executable,
                         "-u",
-                        str(ROOT / "run_recursive_improvement.py"),
+                        "-m",
+                        "benchmarks.osworld.pipeline",
                         "--protocol",
                         str(folder / task / "protocol.json"),
                         "--phase",

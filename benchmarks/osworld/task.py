@@ -142,7 +142,7 @@ def main():
     if getattr(cfg, "verifier_evolve_route", False):
         raise RuntimeError(
             "verifier_evolve_route belongs to the unified-loop entrypoint; "
-            "run_task.py would cross the sealed grader boundary after EVOLVE")
+            "benchmarks/osworld/task.py would cross the sealed grader boundary after EVOLVE")
     if args.max_iters:
         cfg.max_iters = args.max_iters
 
@@ -308,7 +308,7 @@ def main():
 
         evaluator_correction_record = None
         if args.evaluator_correction:
-            from osworld_evaluator_corrections import apply_evaluator_correction
+            from benchmarks.osworld.evaluator_corrections import apply_evaluator_correction
             evaluator_correction_record = apply_evaluator_correction(
                 task_config, args.evaluator_correction)
 

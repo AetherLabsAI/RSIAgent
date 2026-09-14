@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from osworld_evaluator_corrections import (
+from benchmarks.osworld.evaluator_corrections import (
     TASK102_SOURCE_SHA256, TASK102_STYLE_CORRECTION, apply_evaluator_correction,
 )
 

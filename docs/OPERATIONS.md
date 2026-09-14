@@ -35,6 +35,10 @@ than any one invocation. There is no default two-practice Phase 2 limit.
 
 ## Running and observing
 
+Use `python run_osworld.py --arm both --name <batch_name>` for the full OSWorld
+cohort. `--dry-run` prints the plan, and `--concurrency N` controls independent
+task lineages. ALE runs through `run_ale.py`; see [ALE operations](ALE.md).
+
 `bash scripts/run_rsi.sh <protocol.json>` invokes the three phases sequentially,
 uses a separate cache per phase, and records streamed logs. To inspect a finished
 phase, start with `results/recursive_improvement/<run_name>/phaseN/result.json`.
@@ -49,6 +53,11 @@ official scores.
 
 The wrapper performs no unattended recovery. It exits on failure. No monitoring
 daemon or scheduler is installed by this release.
+
+For phase-level inspection, use `python -m benchmarks.osworld.pipeline --help`.
+The internal `phase1`, `phase2`, and `task` modules live in the same package;
+they are also invoked with `python -m benchmarks.osworld.<module>` from the
+checkout. The root entrypoints handle ordinary batch runs.
 
 ## Concurrency
 

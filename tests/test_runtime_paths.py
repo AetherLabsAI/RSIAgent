@@ -70,7 +70,7 @@ def test_rsiagent_owned_paths_ignore_osworld_working_directory(
 
 def test_official_runtime_has_no_person_specific_absolute_path():
     for relative_path in (
-            "run_task.py",
+            "benchmarks/osworld/task.py",
             "llm/client.py",
             "benchmarks/osworld/runtime.py",
             "config/osworld/baseline.yaml"):

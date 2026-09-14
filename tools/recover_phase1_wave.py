@@ -114,7 +114,7 @@ def next_recovery_dir(root):
 
 
 def build_plan(protocol_path):
-    import run_phase1_exploration as runner
+    import benchmarks.osworld.phase1 as runner
     runner._install_paths()
     from explore import phase1_wave as wave
     from explore.practice_loop import _manifest, _read_memory_tree
@@ -387,7 +387,7 @@ def main():
         # Let the ordinary protocol wrapper validate the now-complete Phase 1
         # and record its completion event; it reuses the result without work.
         subprocess.run([
-            sys.executable, str(REPO / 'run_recursive_improvement.py'),
+            sys.executable, '-m', 'benchmarks.osworld.pipeline',
             '--protocol', str(protocol_path), '--phase', 'phase1',
             '--execute', 'RUN-RECURSIVE-IMPROVEMENT-PHASE1'], cwd=REPO, check=True)
 

@@ -45,7 +45,11 @@ def test_wrapper_preserves_order_caches_logs_and_failures(tmp_path, fail_at, exp
     (root / "scripts").mkdir(parents=True)
     script = root / "scripts/run_rsi.sh"
     shutil.copyfile(Path(__file__).resolve().parents[1] / "scripts/run_rsi.sh", script)
-    (root / "run_recursive_improvement.py").write_text(STUB)
+    package = root / "benchmarks/osworld"
+    package.mkdir(parents=True)
+    (package.parent / "__init__.py").touch()
+    (package / "__init__.py").touch()
+    (package / "pipeline.py").write_text(STUB)
     protocol = tmp_path / "study with spaces.json"
     protocol.write_text(json.dumps({"run_name": "wrapper_test", "fail_at": fail_at}))
     process = subprocess.run(
