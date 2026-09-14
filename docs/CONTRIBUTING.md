@@ -3,7 +3,8 @@
 Open an issue describing the problem or send a pull request with a focused change.
 Include the concrete behavior before and after the change and relevant validation.
 
-Use Python 3.12, install `requirements-dev.txt`, and run
+From the repository root, use Python 3.12, install
+[requirements-dev.txt](../requirements-dev.txt), and run
 `python tools/check_rsi_release.py`. Tests use fake guests and model responses;
 routine validation should not launch paid model calls or real benchmark tasks.
 

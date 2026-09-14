@@ -110,7 +110,7 @@ config/              Role profiles and benchmark configurations
 scripts/             Setup and individual-study helpers
 tools/               Preparation, smoke checks, and recovery utilities
 tests/               Regression tests
-docs/                Architecture and operations
+docs/                Guides, architecture, and attribution
 ```
 
 The two root entrypoints are the starting point for benchmark runs. Internal
@@ -257,7 +257,7 @@ experiments with the pinned configuration.
 - [ALE setup, batches, and reports](docs/ALE.md)
 - [Release provenance and validation](docs/RELEASE.md)
 - [Paper and reporting scope](docs/PAPER.md)
-- [Contributing](CONTRIBUTING.md) · [Third-party attribution](THIRD_PARTY.md)
+- [Contributing](docs/CONTRIBUTING.md) · [Third-party attribution](docs/THIRD_PARTY.md)
 
 ## Citation
 
@@ -277,4 +277,4 @@ If you use RSIAgent, please cite the manuscript:
 
 ## License status
 
-A distribution license has not yet been selected for this repository. Third-party dependency licenses are described in [THIRD_PARTY.md](THIRD_PARTY.md).
+A distribution license has not yet been selected for this repository. Third-party dependency licenses are described in [THIRD_PARTY.md](docs/THIRD_PARTY.md).
