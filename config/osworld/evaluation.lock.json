@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "benchmark": "OSWorld-v2",
+  "experiment": "frozen_memory_evaluation",
+  "task_release": "osworld-v2-2026.08.08",
+  "source_task_count": 108,
+  "valid_task_count": 108,
+  "excluded_tasks": [],
+  "task_assets": {
+    "local_dir": "cache/osworld_v2_assets_0808",
+    "release_marker": ".rsiagent_osworld_release.json",
+    "repository": "xlangai/osworld_v2_assets_gated",
+    "repo_type": "dataset",
+    "tag": "v2026.08.08",
+    "commit": "acad110ef3136405f95434b54862bf9066176c2a"
+  },
+  "actor_agent": {
+    "model": "z-ai/glm-5.3",
+    "config": "config/osworld/baseline.yaml",
+    "sha256": "7e36a60000ee475cd1ea201c8fb6a11489b283f1f172563d44d5c5592d69e85b"
+  },
+  "verifier_agent": {
+    "model": "moonshotai/kimi-k3",
+    "config": "config/roles/verifier.yaml",
+    "sha256": "78808943b1eef820f1fefb2af9c0c9c5af303eea93e0bc71de6f04a6548aaef7",
+    "persistent_within_task": true,
+    "pre_actor_orientation": false,
+    "execution_mode": "rollback_mirror"
+  },
+  "escalated_verifier_agent": {
+    "model": "z-ai/glm-5.3",
+    "config": "config/roles/verifier_escalation.yaml",
+    "sha256": "64e646fc37d8d0a60293054cf5fc4706b6df5067c83da50bb5d5ce6f483df295"
+  },
+  "memory": {
+    "mode": "frozen_host_snapshot_copy_in_only",
+    "host_writeback": false,
+    "forced_full_read": false,
+    "privileged_index": false
+  },
+  "evaluator": {
+    "provider": "openai_compatible",
+    "model": "openai/gpt-5.4",
+    "base_url": "https://openrouter.ai/api/v1",
+    "website_host_suffix": "site.hku.icu",
+    "retry_attempts": 5,
+    "retry_delay_seconds": 15,
+    "visibility": "sealed_after_actor_verifier_loop"
+  }
+}

@@ -20,13 +20,14 @@ def test_task_runner_preserves_only_blocked_verification(monkeypatch, tmp_path, 
     repo = Path(__file__).resolve().parents[1]
     benchmark = tmp_path / "benchmark"
     benchmark.mkdir()
-    monkeypatch.setenv("FORGE_ROOT", str(repo))
+    monkeypatch.setenv("RSIAGENT_ROOT", str(repo))
     monkeypatch.setenv("OSWORLD_ROOT", str(benchmark))
-    monkeypatch.delenv("FORGE_CONFIG", raising=False)
+    monkeypatch.delenv("RSIAGENT_CONFIG", raising=False)
     monkeypatch.setattr(sys, "path", list(sys.path))
     monkeypatch.setattr(sys, "argv", ["run_task.py", "task_unit", "--seed", "17"])
     monkeypatch.setattr(signal, "signal", lambda *_args: None)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("benchmarks.osworld.runtime._install_paths", lambda: None)
 
     class Desktop:
         provider = SimpleNamespace(container=SimpleNamespace(id="retained-container"))
@@ -50,7 +51,7 @@ def test_task_runner_preserves_only_blocked_verification(monkeypatch, tmp_path, 
     desktop = Desktop()
     # No benchmark task code, Docker provider, guest command, or model is invoked.
     modules = {
-        "qemu_provider": {
+        "benchmarks.osworld.provider": {
             "prepare_checkpointable_docker_provider": lambda _mode: None},
         "task_loader": {
             "resolve_task_json_path": lambda **_kwargs: "synthetic-public-task",
@@ -67,7 +68,7 @@ def test_task_runner_preserves_only_blocked_verification(monkeypatch, tmp_path, 
     namespace = runpy.run_path(str(repo / "run_task.py"))
     main = namespace["main"]
     state = main.__globals__
-    state["FORGE"] = str(tmp_path)
+    state["RSIAGENT_ROOT"] = tmp_path
     state["VM"] = lambda environment: environment
     state["load_config"] = lambda _path: Config(
         model="synthetic-actor", verifier_execution_mode="rollback_mirror",

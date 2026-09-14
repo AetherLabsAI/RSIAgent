@@ -82,6 +82,6 @@ def test_default_off_is_byte_inert_for_the_same_recurrence(monkeypatch, tmp_path
     assert all("LIVENESS OBSERVATION" not in u for u in users)
 
 
-def test_e10_agentic_roles_enable_cycle_evidence():
-    for name in ("actor", "verify", "curriculum", "memory"):
-        assert load(f"config/e10_{name}.yaml").cycle_evidence is True
+def test_current_agentic_roles_enable_cycle_evidence():
+    for name in ("actor", "verifier", "curriculum", "practice_verifier"):
+        assert load(f"config/roles/{name}.yaml").cycle_evidence is True

@@ -1,4 +1,4 @@
-"""The forge attempt loop — code as policy, closed over execution traces.
+"""The rsiagent attempt loop — code as policy, closed over execution traces.
 
 One attempt = a bounded conversation in which the model repeatedly submits a whole
 PROGRAM (executed in the VM, full trace fed back) until it declares done with
@@ -21,7 +21,7 @@ def _normalize_program_transport_failure(trace) -> bool:
     ``VM.run_script`` is the primary authority for this bit. This narrow fallback
     recognizes only an absent execution trailer plus the trusted wrapper's exact
     mktemp/run-log failure shape. A model program that merely prints these words
-    still receives a real ``[exit N]`` trailer and cannot forge infrastructure.
+    still receives a real ``[exit N]`` trailer and cannot rsiagent infrastructure.
     """
 
     if bool(getattr(trace, "infra_fail", False)):
@@ -30,7 +30,7 @@ def _normalize_program_transport_failure(trace) -> bool:
     wrapper_failed = (
         getattr(trace, "exit_code", None) is None
         and "mktemp: failed to create file via template" in stdout
-        and "/tmp/forge_" in stdout
+        and "/tmp/rsiagent_" in stdout
         and "Read-only file system" in stdout)
     if wrapper_failed:
         trace.infra_fail = True
@@ -185,7 +185,7 @@ from core.imagery import fetch_look_image, grid_cells, prepare_look_images
 from llm.client import LLMTransportError, chat, durable_user_message
 from llm.client import pop_last_reasoning as _pop_last_reasoning, parse_object
 from core.actor import (FIDELITY_NOTE, NUDGE, ONE_ACTION_NUDGE, PREMATURE_DONE, REPEAT_WARNING,
-                         STRICT_NUDGE, SUMMARIZER_SYSTEM, SYSTEM, VISION_AGENT_SYSTEM, VISION_SYSTEM, Ask, Done, Look, Program, build_system,
+                         STRICT_NUDGE, SUMMARIZER_SYSTEM, VISION_AGENT_SYSTEM, Ask, Look, Program, build_system,
                          continuation_message, extract_plan, look_answer_message, look_message, multi_program_note,
                          opening_message, parse_turn, repair_message, trace_message)
 
@@ -204,14 +204,14 @@ _RICHLIB_RE = _re.compile(
 # precision; look only for recognition; read the file"), the A/B proved it non-load-
 # bearing (fired 56x on t063 yet ON did not beat OFF), and it was the last task/behavior
 # regex classifier in the harness. The principle carries it; the model decides.
-from core.verifier import (VerifierSession, carry_findings, disagreement_message,
+from core.verifier import (VerifierSession, disagreement_message,
                             second_opinion, unverified_message,
                             verify_independent)
 from core.verifier_runtime import (
     AgenticVerifierInfrastructureError, AgenticVerifierNoProgressError,
 )
 
-log = logging.getLogger("forge.loop")
+log = logging.getLogger("rsiagent.loop")
 
 
 def _provider_request(cfg) -> dict:
@@ -530,7 +530,7 @@ def uv_accept_ok(cfg, unverified: int, commit: bool, wrongs: int) -> bool:
     Legacy (both flags off): Nth could-not-confirm accepts, whatever the run's
     record — the E3 exit-door (t005 -1.0 / t039 -.55 / t035 -.50 all left here).
     budget_conditional_accept (v21, built but never shipped ON): accepts only in
-    the commit phase with a clean record. verifier_continuity (wenyi 08-08):
+    the commit phase with a clean record. verifier_continuity ():
     a WRONG revokes benefit-of-the-doubt for the rest of the run — evidence,
     not exhausted patience, closes the case."""
     # The full-Agent verifier arm has a binary terminal contract.  A missing or
@@ -983,7 +983,7 @@ def run_attempt(instruction: str, vm, cfg, sink, iters_budget: int = None,
                      if user_message_transform is not None else user)
         sent_image = image
         transport_options = {}
-        if dry and os.environ.get("FORGE_JSON_ACTION_RETRY") == "1":
+        if dry and os.environ.get("RSIAGENT_JSON_ACTION_RETRY") == "1":
             # Formatting retry: preserve model, sampling, context and parser.
             # Enable only after checking the route's response_format support.
             transport_options["json_object"] = True
@@ -1317,7 +1317,7 @@ def run_attempt(instruction: str, vm, cfg, sink, iters_budget: int = None,
             # the loop (run_explore.py) on the memory diff, pre-revert.
             _req = getattr(cfg, "practice_done_requires", "")
             if _req:
-                # BRIEF Phase-0 gate (wenyi 07-31, after the t012 task-in-prep
+                # BRIEF Phase-0 gate ( 07-31, after the t012 task-in-prep
                 # bypass): the session's declared deliverable must EXIST before
                 # done is accepted. Existence probe only — content never read.
                 # Repeated refusals hit max_consec_done -> stalled -> fail-open.
@@ -1626,7 +1626,7 @@ def escalation_cfg(cfg):
     What is NOT reset: reasoning_in_history. RIH is model-AGNOSTIC — decisive for
     BOTH (v38 K3 + GLM ladder 07-28; DECISIONS_LEDGER rule "rih: always"). The old
     code reset it to False on the pre-ladder belief that RIH was "k3's protocol",
-    silently stripping it from every escalated GLM segment (wenyi 08-12: "this is
+    silently stripping it from every escalated GLM segment ( 08-12: "this is
     our bug"). It now inherits the base config's value."""
     from dataclasses import replace as _replace
     if (getattr(cfg, "vision_model", "")

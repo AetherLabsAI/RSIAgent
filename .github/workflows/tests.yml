@@ -23,3 +23,10 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: python tools/check_rsi_release.py
       - run: bash -n scripts/run_rsi.sh
+      - name: Check public entrypoints
+        run: |
+          python run_task.py --help
+          python run_phase2.py --help
+          python run_ale.py --help
+          python tools/smoke_osworld.py --help
+          python scripts/run_osworld_batch.py --dry-run > /tmp/osworld-batch.json

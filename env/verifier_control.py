@@ -18,12 +18,12 @@ import time
 from env.vm import Trace, _decode_run_output_envelopes
 
 QEMU_ARGUMENTS = (
-    "-device virtio-serial-pci,id=forge_control "
-    "-chardev socket,id=forge_control,host=127.0.0.1,port=7101,server=on,wait=off "
-    "-device virtserialport,bus=forge_control.0,chardev=forge_control,"
-    "name=org.forge.verifier.control"
+    "-device virtio-serial-pci,id=rsiagent_control "
+    "-chardev socket,id=rsiagent_control,host=127.0.0.1,port=7101,server=on,wait=off "
+    "-device virtserialport,bus=rsiagent_control.0,chardev=rsiagent_control,"
+    "name=org.rsiagent.verifier.control"
 )
-DEVICE = "/dev/virtio-ports/org.forge.verifier.control"
+DEVICE = "/dev/virtio-ports/org.rsiagent.verifier.control"
 
 # This loopback belongs to the provider container, not the guest. Port 7101 is
 # never published, nor bound to the guest's container-gateway interface.
@@ -45,7 +45,7 @@ exit 124
 '''
 
 _DAEMON = r'''import base64, json, os, pathlib, signal, subprocess, tempfile, time
-device = "/dev/virtio-ports/org.forge.verifier.control"
+device = "/dev/virtio-ports/org.rsiagent.verifier.control"
 os.chown(device, 0, 0)
 os.chmod(device, 0o600)
 os.umask(0o077)
@@ -74,7 +74,7 @@ with open(device, "r+b", buffering=0) as wire:
                     code = base64.b64decode(req["code_b64"], validate=True)
                     budget = int(req["timeout"])
                     assert budget > 0
-                    with tempfile.TemporaryDirectory(dir="/run/forge-verifier-control") as td:
+                    with tempfile.TemporaryDirectory(dir="/run/rsiagent-verifier-control") as td:
                         script = pathlib.Path(td) / "wrapper.sh"
                         script.write_bytes(code)
                         script.chmod(0o600)
@@ -137,7 +137,7 @@ class VerifierControl:
         nonce = secrets.token_hex(16)
         payload = {**payload, "nonce": nonce}
         data = (json.dumps(payload) + "\n").encode("ascii")
-        name = "forge-control-request-" + nonce
+        name = "rsiagent-control-request-" + nonce
         stream = io.BytesIO()
         with tarfile.open(fileobj=stream, mode="w") as archive:
             info = tarfile.TarInfo(name)
@@ -148,7 +148,7 @@ class VerifierControl:
                 container.client.api.timeout, int(timeout) + 60)
             container.put_archive("/tmp", stream.getvalue())
             result = container.exec_run(
-                ["bash", "-c", _CLIENT, "forge-verifier-control", "/tmp/" + name,
+                ["bash", "-c", _CLIENT, "rsiagent-verifier-control", "/tmp/" + name,
                  str(int(timeout) + 15), nonce])
         if result.exit_code != 0:
             raise RuntimeError(f"Verifier control transport failed: exit={result.exit_code}")
@@ -174,7 +174,7 @@ class VerifierControl:
             result = self._request({"op": "run", "timeout": int(timeout),
                 "code_b64": base64.b64encode((_ROOT_WRAPPER + code).encode()).decode()}, timeout)
             output, context = _decode_run_output_envelopes(
-                "FORGE_RUN_OUTPUT_BASE64:" + result["output_b64"] + "\n"
+                "RSIAGENT_RUN_OUTPUT_BASE64:" + result["output_b64"] + "\n"
                 + f"[exit {result['exit_code']}]")
             return Trace(output, result["exit_code"], time.monotonic()-started,
                          result["timed_out"], False, context)
@@ -192,14 +192,14 @@ def provision_verifier_control(desktop):
     script = f'''set -eu
 printf %s {password!r} | base64 -d | sudo -S -k -p '' -- bash -ceu '
   test -c {DEVICE}
-  install -d -m 0700 -o root -g root /run/forge-verifier-control
-  printf %s "$1" | base64 -d > /run/forge-verifier-control/server.py
-  chmod 0400 /run/forge-verifier-control/server.py
+  install -d -m 0700 -o root -g root /run/rsiagent-verifier-control
+  printf %s "$1" | base64 -d > /run/rsiagent-verifier-control/server.py
+  chmod 0400 /run/rsiagent-verifier-control/server.py
   chmod 0600 {DEVICE}
   nohup env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin /usr/bin/python3 \
-    /run/forge-verifier-control/server.py \
-    >/run/forge-verifier-control/server.log 2>&1 </dev/null &
-' forge-control-bootstrap {payload!r}
+    /run/rsiagent-verifier-control/server.py \
+    >/run/rsiagent-verifier-control/server.log 2>&1 </dev/null &
+' rsiagent-control-bootstrap {payload!r}
 sudo -K
 '''
     trace = VM(desktop).run_script("bash", script, timeout=60, cap=0)
@@ -207,5 +207,5 @@ sudo -K
         raise RuntimeError("Verifier control bootstrap failed: " + trace.stdout)
     control = VerifierControl(desktop)
     control.ping()
-    desktop._forge_verifier_control = control
+    desktop._rsiagent_verifier_control = control
     return control

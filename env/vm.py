@@ -1,4 +1,4 @@
-"""VM — the machine forge's agent acts on. Duck-typed over a v2 ``DesktopEnv`` (never
+"""VM — the machine rsiagent's agent acts on. Duck-typed over a v2 ``DesktopEnv`` (never
 imports it): only ``env.controller.http_server`` is used. Two verbs, both code:
 
 - ``run_command``: one shell command (probes, checks).
@@ -7,7 +7,7 @@ imports it): only ``env.controller.http_server`` is used. Two verbs, both code:
   cat'd back, so a timeout still leaves a recoverable partial trace (anchor's adapter
   lost the entire trace on timeout — the trace is our core signal, so that's fixed here).
 
-No GUI, no grounder, no screenshots — forge is a pure text+code agent.
+No GUI, no grounder, no screenshots — rsiagent is a pure text+code agent.
 """
 import base64
 import hashlib
@@ -25,13 +25,13 @@ from dataclasses import dataclass
 
 import requests
 
-log = logging.getLogger("forge.vm")
+log = logging.getLogger("rsiagent.vm")
 
-_RUN_LOG_PREFIX = "/tmp/forge_run_"      # primary program trace location
-_SHM_RUN_LOG_PREFIX = "/dev/shm/forge_run_"  # survives a read-only guest root
-_RUN_OUTPUT_B64_PREFIX = "FORGE_RUN_OUTPUT_BASE64:"
-_STAGING_FALLBACK = "[FORGE STAGING FALLBACK: /tmp unavailable; using /dev/shm]"
-_STAGING_UNAVAILABLE = "[FORGE STAGING UNAVAILABLE: /tmp and /dev/shm both failed]"
+_RUN_LOG_PREFIX = "/tmp/rsiagent_run_"      # primary program trace location
+_SHM_RUN_LOG_PREFIX = "/dev/shm/rsiagent_run_"  # survives a read-only guest root
+_RUN_OUTPUT_B64_PREFIX = "RSIAGENT_RUN_OUTPUT_BASE64:"
+_STAGING_FALLBACK = "[RSIAGENT STAGING FALLBACK: /tmp unavailable; using /dev/shm]"
+_STAGING_UNAVAILABLE = "[RSIAGENT STAGING UNAVAILABLE: /tmp and /dev/shm both failed]"
 # Linux counts the shell command, environment, and argv against one execve limit.
 # Keep ordinary short actions on the low-latency inline path, but stream larger
 # programs losslessly rather than imposing a content ceiling or relying on the
@@ -46,7 +46,7 @@ def _atomic_guest_part_path(destination: str, token: str) -> str:
     if not basename:
         return ""
     directory = posixpath.dirname(normalized) or "."
-    return posixpath.join(directory, f".{basename}.forge-part-{token}")
+    return posixpath.join(directory, f".{basename}.rsiagent-part-{token}")
 
 
 def _decode_run_output_envelopes(output: str) -> tuple[str, str | None]:
@@ -93,9 +93,9 @@ def _decode_run_output_envelopes(output: str) -> tuple[str, str | None]:
             encoded = base64.b64encode(raw).decode("ascii")
             digest = hashlib.sha256(raw).hexdigest()
             archived_parts.append(
-                "[FORGE NON-UTF8 PROGRAM OUTPUT — EXACT BASE64; "
+                "[RSIAGENT NON-UTF8 PROGRAM OUTPUT — EXACT BASE64; "
                 f"bytes={len(raw)} sha256={digest}]\n{encoded}\n"
-                "[END FORGE NON-UTF8 PROGRAM OUTPUT]")
+                "[END RSIAGENT NON-UTF8 PROGRAM OUTPUT]")
             context_notice = (
                 "[PROGRAM OUTPUT EXTERNALIZED: non-UTF8/binary data; "
                 f"bytes={len(raw)} sha256={digest}. The exact bytes are preserved "
@@ -106,7 +106,7 @@ def _decode_run_output_envelopes(output: str) -> tuple[str, str | None]:
             # before model code begins. It is control-plane evidence, not binary
             # payload, and must remain visible to the trusted sandbox validator.
             control_tokens = re.findall(
-                rb"__FORGE_[A-Za-z0-9_]+__", raw)
+                rb"__RSIAGENT_[A-Za-z0-9_]+__", raw)
             if control_tokens:
                 context_notice += "\n" + "\n".join(
                     token.decode("ascii") for token in control_tokens)
@@ -163,7 +163,7 @@ class VM:
             # setting requests' timeout does not change that server-side limit:
             # the endpoint kills only its immediate ``shell=True`` wrapper when
             # the default expires, allowing grandchildren such as ffmpeg to keep
-            # mutating the VM after Forge has advanced to the next turn.  Forward
+            # mutating the VM after RSIAgent has advanced to the next turn.  Forward
             # the action timeout explicitly.  The run_script wrapper's GNU
             # ``timeout`` still fires 30 seconds earlier, kills its process group,
             # and returns the partial trace before this transport ceiling.
@@ -231,8 +231,8 @@ class VM:
             remaining = max(1.0, deadline - time.monotonic())
             probe_timeout = max(1, min(10, int(remaining)))
             last = self.run_command(
-                "printf FORGE_CONTROLLER_READY", timeout=probe_timeout, cap=1000)
-            if (last or "").strip() == "FORGE_CONTROLLER_READY":
+                "printf RSIAGENT_CONTROLLER_READY", timeout=probe_timeout, cap=1000)
+            if (last or "").strip() == "RSIAGENT_CONTROLLER_READY":
                 stable += 1
                 if stable >= stable_needed:
                     elapsed = time.monotonic() - started
@@ -280,9 +280,9 @@ class VM:
         streamed_script = ""
         if len(b64) > _INLINE_PROGRAM_B64_LIMIT:
             streamed_script = (
-                f"/dev/shm/forge_program_{run_token}.{extension}")
+                f"/dev/shm/rsiagent_program_{run_token}.{extension}")
             local = tempfile.NamedTemporaryFile(
-                prefix="forge-program-", suffix=f".{extension}", delete=False)
+                prefix="rsiagent-program-", suffix=f".{extension}", delete=False)
             try:
                 local.write(code.encode("utf-8"))
                 local.flush()
@@ -329,11 +329,11 @@ class VM:
             # the normal fail-fast path: it must not pretend it can repair a candidate
             # whose filesystem is read-only.
             cmd = (
-                f'tmp_candidate=$(mktemp /tmp/forge_XXXXXX.{extension} 2>&1); '
+                f'tmp_candidate=$(mktemp /tmp/rsiagent_XXXXXX.{extension} 2>&1); '
                 'tmp_status=$?; '
                 f'if [ "$tmp_status" -eq 0 ]; then f="$tmp_candidate"; run_log={run_log}; '
                 'else tmp_error="$tmp_candidate"; '
-                f'shm_candidate=$(mktemp /dev/shm/forge_XXXXXX.{extension} 2>&1); '
+                f'shm_candidate=$(mktemp /dev/shm/rsiagent_XXXXXX.{extension} 2>&1); '
                 'shm_status=$?; '
                 'if [ "$shm_status" -ne 0 ]; then '
                 f'printf "%s\\n/tmp: %s\\n/dev/shm: %s\\n" '
@@ -344,7 +344,7 @@ class VM:
                 f'{timeout_cmd} {interpreter} "$f" > "$run_log" 2>&1; e=$?; '
                 f'{emit_log}; echo "[exit $e]"; rm -f "$f" "$run_log"')
         else:
-            cmd = (f'f=$(mktemp /tmp/forge_XXXXXX.{extension}); '
+            cmd = (f'f=$(mktemp /tmp/rsiagent_XXXXXX.{extension}); '
                    f'printf %s {b64} | base64 -d > "$f"; '
                    f'{timeout_cmd} {interpreter} "$f" > {run_log} 2>&1; e=$?; '
                    f'run_log={run_log}; {emit_log}; echo "[exit $e]"; '
@@ -545,7 +545,7 @@ class VM:
                 source_digest.update(block)
         source_sha256 = source_digest.hexdigest()
         token = secrets.token_hex(12)
-        prefix = f"/tmp/forge_push_{token}"
+        prefix = f"/tmp/rsiagent_push_{token}"
         # ``os.replace`` is atomic only within one filesystem. Program payloads
         # intentionally target /dev/shm when the root filesystem is impaired, so
         # staging their part file in /tmp would fail with EXDEV/OSError. Keep the
@@ -615,8 +615,8 @@ with open(status, "w", encoding="ascii") as handle:
             f"{shlex.quote(port_path)} {shlex.quote(log_path)}; "
             f"nohup python3 -c {shlex.quote(receiver)} {quoted_paths} "
             f">{shlex.quote(log_path)} 2>&1 </dev/null & "
-            "echo FORGE_PUSH_PID=$!", timeout=30)
-        pid_match = re.search(r"FORGE_PUSH_PID=(\d+)", launch or "")
+            "echo RSIAGENT_PUSH_PID=$!", timeout=30)
+        pid_match = re.search(r"RSIAGENT_PUSH_PID=(\d+)", launch or "")
         pid = pid_match.group(1) if pid_match else ""
 
         def cleanup(*, terminate: bool) -> None:
@@ -632,7 +632,7 @@ with open(status, "w", encoding="ascii") as handle:
         port_out = self.run_command(
             f"for i in $(seq 1 100); do test -s {shlex.quote(port_path)} "
             f"&& cat {shlex.quote(port_path)} && exit 0; sleep 0.1; done; "
-            "echo FORGE_PUSH_PORT_TIMEOUT", timeout=20)
+            "echo RSIAGENT_PUSH_PORT_TIMEOUT", timeout=20)
         port_match = re.search(r"(?m)^([0-9]{2,5})$", port_out or "")
         if not port_match or not 1 <= int(port_match.group(1)) <= 65535:
             cleanup(terminate=True)
@@ -657,7 +657,7 @@ with open(status, "w", encoding="ascii") as handle:
         status_out = self.run_command(
             f"for i in $(seq 1 600); do test -s {shlex.quote(status_path)} "
             f"&& cat {shlex.quote(status_path)} && exit 0; sleep 0.1; done; "
-            "echo FORGE_PUSH_STATUS_TIMEOUT", timeout=90)
+            "echo RSIAGENT_PUSH_STATUS_TIMEOUT", timeout=90)
         expected_status = f"OK {source_size} {source_sha256}"
         if expected_status not in (status_out or "").splitlines():
             cleanup(terminate=True)

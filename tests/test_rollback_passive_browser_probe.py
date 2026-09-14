@@ -52,10 +52,10 @@ def test_passive_probe_reads_listeners_without_network(
     script = rollback._BROWSER_LISTENER_PROBE.split("\n", 1)[1].rsplit("\n", 1)[0]
     exec(compile(script, "<passive-browser-listeners>", "exec"), {})
     wanted = "READY" if expected else "ABSENT"
-    assert capsys.readouterr().out.strip() == "FORGE_BROWSER_LISTENERS_" + wanted
+    assert capsys.readouterr().out.strip() == "RSIAGENT_BROWSER_LISTENERS_" + wanted
 
 
-@pytest.mark.parametrize("reply", ["", "[channel error: HTTP 500]", "READY", "FORGE_BROWSER_LISTENERS_READY\n[stderr] error"])
+@pytest.mark.parametrize("reply", ["", "[channel error: HTTP 500]", "READY", "RSIAGENT_BROWSER_LISTENERS_READY\n[stderr] error"])
 def test_unknown_probe_result_cannot_silently_disable_recovery(reply):
     vm = SimpleNamespace(
         env=SimpleNamespace(vm_ip="localhost", chromium_port=9234),
@@ -72,7 +72,7 @@ def test_lost_browser_listener_keeps_checkpoint_and_blocks_release(monkeypatch):
     ticks = iter(index / 10 for index in range(100))
     monkeypatch.setattr(rollback.time, "monotonic", lambda: next(ticks))
     monkeypatch.setattr(rollback.time, "sleep", lambda _seconds: None)
-    replies = iter(["FORGE_BROWSER_LISTENERS_READY"] + ["FORGE_BROWSER_LISTENERS_ABSENT"] * 10)
+    replies = iter(["RSIAGENT_BROWSER_LISTENERS_READY"] + ["RSIAGENT_BROWSER_LISTENERS_ABSENT"] * 10)
     vm = SimpleNamespace(
         env=SimpleNamespace(vm_ip="localhost", chromium_port=9234),
         run_command=lambda *_args, **_kwargs: next(replies),

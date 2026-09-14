@@ -7,7 +7,7 @@ import pytest
 from config.settings import Config, load
 from explore import unified_evolution as U
 from explore.charter import self_evolving_curriculum_charter
-import run_self_evolving as runner
+import run_phase2 as runner
 from test_unified_evolution import _VM, _hooks
 
 
@@ -89,7 +89,7 @@ def test_visibility_changes_only_curriculum_across_practice_learning(
 @pytest.mark.parametrize("access", ["read_only", "none"])
 def test_cli_scope_and_manifest(tmp_path, monkeypatch, access):
     monkeypatch.setattr(runner, "_install_paths", lambda: None)
-    with pytest.raises(RuntimeError, match="requires --phase2-training"):
+    with pytest.raises(RuntimeError, match="requires --protocol-run"):
         runner.main(["task_098", "--preflight",
                      "--phase2-curriculum-memory-access", access])
     config = tmp_path / "actor.yaml"
@@ -114,7 +114,7 @@ def test_ablation_cannot_change_an_existing_recovery(monkeypatch, tmp_path):
     monkeypatch.setattr(runner, "_install_paths", lambda: None)
     with pytest.raises(RuntimeError, match="fresh Phase-2 lineage"):
         runner.main([
-            "task_098", "--phase2-training", "--protocol-run", "comparison",
+            "task_098",  "--protocol-run", "comparison",
             "--initial-memory", str(tmp_path), "--preflight",
             "--phase2-curriculum-memory-access", "none"], recovery_plan=object())
 

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from config.settings import load
-from explore import e15_loop as E, unified_evolution as U
+from explore import practice_loop as E, unified_evolution as U
 from explore import practice_evidence_recovery as R
 from explore.phase2_recovery import sha
 from test_phase2_recovery import fixture, save, admit
@@ -94,7 +94,7 @@ def test_invalid_practice_checkpoint_is_rejected_without_writes(tmp_path,fault):
     else:
         plan=json.loads(f.plan.read_text());Path(plan['curriculum_publication_program']).write_text('notes=untrusted_call()')
     before={str(p):sha(p) for p in tmp_path.rglob('*') if p.is_file()}
-    with pytest.raises((E.E15InfrastructureError,tarfile.ReadError)):
+    with pytest.raises((E.PracticeInfrastructureError,tarfile.ReadError)):
         admit(f)
     assert before=={str(p):sha(p) for p in tmp_path.rglob('*') if p.is_file()}
 
@@ -184,7 +184,7 @@ def test_unverified_resumes_same_actor_and_verifier_then_returns_real_fail(tmp_p
 def test_evidence_budget_exhaustion_never_becomes_success(tmp_path,monkeypatch):
     ep,kw,calls,_=evidence_setup(tmp_path,monkeypatch,iter(['unverified']))
     kw['resume_state']['prior_actor_iters']=kw['actor_cfg'].max_iters-1
-    with pytest.raises(E.E15InfrastructureError,match='remaining budget exhausted'):
+    with pytest.raises(E.PracticeInfrastructureError,match='remaining budget exhausted'):
         R.run_practice_with_evidence(**kw)
     assert calls==['actor','verify'] and not (ep/'verifier_report.md').exists()
 
@@ -193,7 +193,7 @@ def test_verifier_transport_absence_never_triggers_an_actor_retry(tmp_path,monke
     import core.verifier as verifier
     ep,kw,calls,_=evidence_setup(tmp_path,monkeypatch,iter([]))
     monkeypatch.setattr(verifier,'verify_agentic',lambda *a,**kw:('unverified','VM connection failed'))
-    with pytest.raises(E.E15InfrastructureError,match='infrastructure absence'):
+    with pytest.raises(E.PracticeInfrastructureError,match='infrastructure absence'):
         R.run_practice_with_evidence(**kw)
     assert calls==['actor'] and not (ep/'verifier_report.md').exists()
 
@@ -258,7 +258,7 @@ def test_first_practice_rejects_condition_drift_and_partial_learning(tmp_path, f
         publication.write_text(publication.read_text() + "open('/home/user/curriculum_notes.md', 'w').write(notes)\n")
         (publication.parent / 'trace.txt').write_text('curriculum_notes.md: 1 bytes\n[exit 0]')
     save(f.plan, plan)
-    with pytest.raises(E.E15InfrastructureError):
+    with pytest.raises(E.PracticeInfrastructureError):
         admit(f)
 
 

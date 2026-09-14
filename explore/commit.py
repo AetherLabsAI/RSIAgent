@@ -14,7 +14,7 @@ import re
 import tarfile
 import time
 
-log = logging.getLogger("forge.explore.commit")
+log = logging.getLogger("rsiagent.explore.commit")
 
 GUEST_MEM = "~/.memory"
 _CHUNK = 3000          # base64 chars per run_command append (arg-length safe)
@@ -42,9 +42,7 @@ def push_memory(vm, memory_dir: str) -> bool:
 
 def push_dir(vm, host_dir: str, guest_path: str) -> bool:
     """host dir -> arbitrary guest path. Full replace; guest dir recreated.
-    Generic sibling of push_memory (same chunked-b64 tar pipe), added for the
-    E7 curriculum-archive transport (PREREG E7 v2.2 §4 M7) but destination-
-    agnostic on purpose. Uses its own /tmp staging names so an interleaved
+    Generic sibling of push_memory using the same chunked base64 archive. Uses its own /tmp staging names so an interleaved
     push_memory can never collide."""
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tf:
@@ -67,7 +65,7 @@ def push_dir(vm, host_dir: str, guest_path: str) -> bool:
 def rm_guest_dir(vm, guest_path: str) -> str:
     """rm -rf a guest dir and return the verification ls output — the ABSENCE
     PROOF string (M7: the archive is torn down with logged proof before any
-    actor turn). The loop logs this string verbatim; tools.e6_audit.
+    actor turn). The loop logs this string verbatim; tools.practice_audit.
     assert_no_archive() judges it mechanically."""
     return vm.run_command(
         f"rm -rf {guest_path}; ls {guest_path} 2>&1 | head -3")
@@ -80,11 +78,11 @@ def pull_memory(vm, attempts: int = 3) -> dict:
     lost; a flake must not cost an episode). Logs every failed attempt."""
     import logging as _logging
     import time as _time
-    _log = _logging.getLogger("forge.memory")
+    _log = _logging.getLogger("rsiagent.memory")
     data = None
     for att in range(attempts):
         out = vm.run_command(
-            f"cd ~ && tar czf /tmp/mem_out.tgz .memory 2>/dev/null; echo TAR_RC=$?")
+            "cd ~ && tar czf /tmp/mem_out.tgz .memory 2>/dev/null; echo TAR_RC=$?")
         if "TAR_RC=0" not in out:
             _log.warning("pull attempt %d: guest tar failed (out=%r)",
                          att + 1, out[:120])
@@ -246,7 +244,7 @@ def silent_audit(files: dict, corpus_path: str, reject_log: str,
     authorized_words = _WORD.findall(authorized_instruction.lower()) \
         if authorized_instruction else []
     # Keep transcript and durable-memory target exceptions identical. Import
-    # locally so the generic memory transport remains usable without the E15
+    # locally so the generic memory transport remains usable without the RSI
     # practice fence at module-import time.
     from tools.exam_fence import _authorized_near_shingle
     accepted = {}

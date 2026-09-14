@@ -1,29 +1,10 @@
 #!/usr/bin/env python3
-"""EXAM FENCE (PREREG E6 v2.1 §5.1–§5.2) — mechanical containment of exam
-content away from the three agent seats, in four layers:
+"""Host-only rejection checks for benchmark leakage.
 
-  L1 STRUCTURAL  agent commands execute in the GUEST via the in-VM HTTP
-                 controller; no host path is mounted. Verified LIVE at P0 by
-                 fence_guest_probe() (a fence you haven't probed is a wish).
-  L2 PROMPT      every text WE inject into any seat (charter, seed, instance,
-                 feedback, verdict pass-through) is audited BEFORE send:
-                 audit_text(text, mode='practice').
-  L3 TRANSCRIPT  post-hoc + periodic (P6) sweep of all agent transcripts:
-                 audit_transcripts(root, mode). Registered disposition: a
-                 practice-side hit VOIDS the era's P2 claim (prereg §5.2).
-  L4 CONSTANTS   distinctive grader constants per exam seat, extracted host-
-                 side (never enters any prompt); a text is flagged when >=2
-                 distinctive constants of ONE seat co-occur (tuple rule,
-                 red-team #7 — single shared numbers false-positive).
-
-The INTERNET VECTOR is detection-only, honestly: the benchmark is public on
-GitHub and the practice charter encourages web mining; we cannot block one
-repo path without breaking legitimate internet use. L2/L3 catch the URL and
-any fetched grader content via L4. See results/explore/e6/FENCE.md.
-
-Modes: 'practice' = strict (exam paths, task IDs, repo URLs, instruction
-8-grams, constant tuples are ALL hits). 'exam' = the instruction is
-legitimately present; only repo/grader signals count (paths, URLs, tuples).
+Guest isolation, injected-text checks, transcript audits, and distinctive grader
+constant tuples keep grading material outside practice. Practice mode rejects
+task identifiers and instructions; exam mode permits the authorized instruction
+while continuing to reject grader and repository signals.
 """
 import json
 import os
@@ -34,11 +15,11 @@ import shlex
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from config.runtime_paths import resolve_forge_root, resolve_osworld_root
+from config.runtime_paths import resolve_root, resolve_osworld_root
 
 V2_DIR = str(resolve_osworld_root() / "evaluation_examples/task_class")
-FENCE_DIR = str(resolve_forge_root() / "results/explore/e6/_fence")
-EXAM_SEATS = ["042", "044", "056", "011", "036", "062",           # E6 exam
+FENCE_DIR = str(resolve_root() / "results/audit/fence")
+EXAM_SEATS = ["042", "044", "056", "011", "036", "062",           # benchmark-derived fixtures
               "001", "005", "006", "085"]                          # guards
 
 # --- signal patterns -------------------------------------------------------
@@ -66,8 +47,8 @@ _APP_VOCAB = {"frame_rate_num", "frame_rate_den", "lift_gamma_gain",
               "warp_speed", "entry_count", "item_ids", "item_type",
               "parent_id", "journal article", "Collection ", "sleep 2",
               "list_directory", "1.35", "1034", "3.00", "7.00",
-              # v1.3 (PREREG_E7 B9): MLT filter/property schema — same class
-              # as lift_gamma_gain/warp_speed above; E7's exam-grade terrain
+              # MLT filter/property schema uses the same vocabulary
+              # as lift_gamma_gain/warp_speed above; ordinary editing
               # writes these in any legitimate fade/color/mask/speed work.
               # Task-author content (deliverable filenames, instruction
               # fragments) deliberately NOT allowlisted.
@@ -77,7 +58,7 @@ _APP_VOCAB = {"frame_rate_num", "frame_rate_den", "lift_gamma_gain",
 # distinctive — excluded as a CLASS, not just the two observed instances.
 _CLOCK_FRAG = re.compile(r"^\d{2}\.\d{3}$")
 
-# PREREG_E8 F6: the E8 card grammar's harness-contract lines ("BUDGET: 40",
+# Numeric harness-contract lines ("BUDGET: 40",
 # "REP: 2") are bare integers by construction and can collide with a seat's
 # numeric constants; such lines are stripped from the copy of the text used
 # for constant-tuple counting ONLY — the path/URL/task-id/8-gram layers
@@ -247,7 +228,7 @@ def audit_text(text: str, mode: str = "practice",
                 hits.append({"kind": "instruction-8gram", "match": g})
                 break
     consts = _load_constants()
-    tuple_text = _BUDGET_LINE.sub("", text)    # PREREG_E8 F6 — L4 copy only
+    tuple_text = _BUDGET_LINE.sub("", text)    # constant-tuple copy only
     for seat, vals in consts.items():
         found = [v for v in vals if _contains_exact_literal(tuple_text, v)]
         if authorized_instruction:

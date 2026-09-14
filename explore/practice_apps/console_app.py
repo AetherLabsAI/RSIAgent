@@ -6,7 +6,6 @@ channels (sqlite + /api/state), form validation, and exact deliverable shape
 (exports must contain ONLY approved rows). Generic content by design — no
 benchmark app, host, or task is imitated.
 """
-import json
 import random
 import sqlite3
 import time

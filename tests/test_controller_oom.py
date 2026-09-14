@@ -15,7 +15,7 @@ def test_installer_requires_existing_service_pid_and_retains_program_resource_li
             assert desktop.client_password == 'synthetic-test-password'
         def run_script(self, lang, code, **kwargs):
             seen.append(code)
-            return Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop\n[exit 0]', 0)
+            return Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop\n[exit 0]', 0)
     monkeypatch.setattr(controller_oom, 'VM', VM)
     receipt = controller_oom.ensure_controller_oom_policy(SimpleNamespace(client_password='synthetic-test-password'))
     assert receipt['main_pid'] == 590 and not receipt['service_restarted']
@@ -30,10 +30,10 @@ def test_installer_requires_existing_service_pid_and_retains_program_resource_li
 
 @pytest.mark.parametrize('trace', [
     Trace('', 0),
-    Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 1),
-    Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 0, infra_fail=True),
-    Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 0, timed_out=True),
-    Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=0 previous=stop', 0),
+    Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 1),
+    Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 0, infra_fail=True),
+    Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=stop', 0, timed_out=True),
+    Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=0 previous=stop', 0),
 ])
 def test_installer_rejects_missing_or_conflicting_confirmation(monkeypatch, trace):
     monkeypatch.setattr(controller_oom, 'VM', lambda desktop: SimpleNamespace(run_script=lambda *a, **k: trace))
@@ -42,7 +42,7 @@ def test_installer_rejects_missing_or_conflicting_confirmation(monkeypatch, trac
 
 
 def test_installer_accepts_already_continuing_service(monkeypatch):
-    trace = Trace('FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=continue\n[exit 0]', 0)
+    trace = Trace('RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=590 previous=continue\n[exit 0]', 0)
     monkeypatch.setattr(controller_oom, 'VM', lambda desktop: SimpleNamespace(run_script=lambda *a, **k: trace))
     result = controller_oom.ensure_controller_oom_policy(SimpleNamespace(client_password='test'))
     assert result['previous_policy'] == 'continue' and result['main_pid'] == 590

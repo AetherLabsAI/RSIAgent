@@ -11,15 +11,15 @@ import json
 from pathlib import Path
 import shutil
 
-from explore.e15_loop import (
-    E15InfrastructureError, _atomic_json, _manifest, _read_memory_tree,
+from explore.practice_loop import (
+    PracticeInfrastructureError, _atomic_json, _manifest, _read_memory_tree,
     _scope_prior_curriculum_visuals,
 )
 
 
 def _require(condition, detail):
     if not condition:
-        raise E15InfrastructureError("parallel-wave resume: " + detail)
+        raise PracticeInfrastructureError("parallel-wave resume: " + detail)
 
 
 def validate_boundary(lineage: Path, target: str, *, project_budget,

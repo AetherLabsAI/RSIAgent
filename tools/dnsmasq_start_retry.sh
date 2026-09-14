@@ -2,7 +2,7 @@
 # Retry only transient host inotify exhaustion before QEMU selects networking.
 # Never start another VM or hide a persistent/other dnsmasq failure.
 set -u
-receipt=$(mktemp /tmp/forge-dnsmasq-start.XXXXXX) || exit 1
+receipt=$(mktemp /tmp/rsiagent-dnsmasq-start.XXXXXX) || exit 1
 trap 'rm -f "$receipt"' EXIT
 for attempt in {1..30}; do
     /usr/sbin/dnsmasq "$@" >"$receipt" 2>&1
@@ -15,7 +15,7 @@ for attempt in {1..30}; do
         exit "$status"
     fi
     if [ "$attempt" -lt 30 ]; then
-        echo "Forge dnsmasq: transient inotify exhaustion, retry $attempt/30" >&2
+        echo "RSIAgent dnsmasq: transient inotify exhaustion, retry $attempt/30" >&2
         sleep 2
     fi
 done

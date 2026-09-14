@@ -1,0 +1,7 @@
+openpyxl==3.1.5
+scikit-learn==1.9.0
+scikit-image==0.25.2
+opencv-python-headless==4.11.0.86
+safetensors==0.6.2
+docker==7.2.0
+python-dotenv==1.2.3

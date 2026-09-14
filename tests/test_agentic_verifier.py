@@ -165,7 +165,7 @@ class _VM:
             return ""
         if command.startswith("test -s "):
             path = command.split(" && echo ", 1)[0][len("test -s "):]
-            return ("__FORGE_REPORT_READY__\n"
+            return ("__RSIAGENT_REPORT_READY__\n"
                     if self.files.get(path) else "")
         return ""
 

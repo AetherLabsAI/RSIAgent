@@ -52,7 +52,7 @@ def test_metadata_without_function_arguments_is_not_a_tool_envelope(metadata):
 
 @pytest.mark.parametrize("tool_name", ["python", "terminal", "custom_tool"])
 def test_existing_json_retry_recovers_same_context_without_executing_fake_calls(monkeypatch, tmp_path, tool_name):
-    monkeypatch.setenv("FORGE_JSON_ACTION_RETRY", "1")
+    monkeypatch.setenv("RSIAGENT_JSON_ACTION_RETRY", "1")
     cfg = load(None)
     cfg.practice_mode = True
     cfg.independent_verify = False

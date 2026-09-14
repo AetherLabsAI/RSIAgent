@@ -6,9 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.actor import trace_message
-from env.vm import VM as ForgeVM, _bound
-from explore import e6_loop, e7_loop, e8_loop
-from explore.e6_loop import _guest_cat, _strip_run_script_trailer
+from env.vm import VM as RSIAgentVM, _bound
 from tools import exam_fence
 
 
@@ -55,7 +53,7 @@ SUCCESS:
 def test_vm_fetch_file_supports_explicit_unbounded_artifact_transfer():
     payload = b"artifact" * 600_000
     controller = SimpleNamespace(get_file=lambda _path: payload)
-    vm = ForgeVM(SimpleNamespace(controller=controller))
+    vm = RSIAgentVM(SimpleNamespace(controller=controller))
 
     assert vm.fetch_file("/tmp/artifact") == (payload, "")
     assert vm.fetch_file("/tmp/artifact", max_bytes=None) == (payload, "")
@@ -66,7 +64,7 @@ def test_vm_fetch_file_supports_explicit_unbounded_artifact_transfer():
 
 def test_actor_program_transport_is_lossless_by_default(monkeypatch):
     payload = "A" * 12000 + "MEMORY-MIDDLE-MUST-SURVIVE" + "Z" * 12000
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     seen = {}
 
     def fake_run_command(_command, timeout, cap):
@@ -84,11 +82,11 @@ def test_actor_program_transport_is_lossless_by_default(monkeypatch):
 
 def test_program_transport_externalizes_non_utf8_bytes_from_context(
         monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
-    ready = b"__FORGE_VERIFIER_SANDBOX_READY_a1b2c3__"
+    vm = RSIAgentVM(SimpleNamespace())
+    ready = b"__RSIAGENT_VERIFIER_SANDBOX_READY_a1b2c3__"
     raw = ready + b"\ntext-before\n\xc8\xff\x00\ntext-after"
     envelope = (
-        "FORGE_RUN_OUTPUT_BASE64:"
+        "RSIAGENT_RUN_OUTPUT_BASE64:"
         + base64.b64encode(raw).decode("ascii")
         + "\n[exit 0]")
     seen = {}
@@ -133,7 +131,7 @@ def test_run_command_forwards_timeout_to_guest_server(monkeypatch):
 
     monkeypatch.setattr("env.vm.requests.post", fake_post)
     controller = SimpleNamespace(http_server="http://controller.invalid")
-    vm = ForgeVM(SimpleNamespace(controller=controller))
+    vm = RSIAgentVM(SimpleNamespace(controller=controller))
 
     assert vm.run_command("sleep 1", timeout=600) == "ok"
     assert seen == {
@@ -154,7 +152,7 @@ def test_run_command_surfaces_guest_execution_failure(monkeypatch):
     monkeypatch.setattr(
         "env.vm.requests.post", lambda *_args, **_kwargs: Response())
     controller = SimpleNamespace(http_server="http://controller.invalid")
-    vm = ForgeVM(SimpleNamespace(controller=controller))
+    vm = RSIAgentVM(SimpleNamespace(controller=controller))
 
     output = vm.run_command("sleep 999", timeout=45)
 
@@ -163,13 +161,13 @@ def test_run_command_surfaces_guest_execution_failure(monkeypatch):
 
 
 def test_controller_recovery_requires_stable_nonmutating_probes(monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     replies = [
         "[channel error: ConnectionError — unavailable]",
-        "FORGE_CONTROLLER_READY",
+        "RSIAGENT_CONTROLLER_READY",
         "[channel error: ConnectionError — restart flap]",
-        "FORGE_CONTROLLER_READY",
-        "FORGE_CONTROLLER_READY",
+        "RSIAGENT_CONTROLLER_READY",
+        "RSIAGENT_CONTROLLER_READY",
     ]
     calls = []
 
@@ -185,12 +183,12 @@ def test_controller_recovery_requires_stable_nonmutating_probes(monkeypatch):
 
     assert recovered is True
     assert len(calls) == 5
-    assert all(call[0] == "printf FORGE_CONTROLLER_READY" for call in calls)
+    assert all(call[0] == "printf RSIAGENT_CONTROLLER_READY" for call in calls)
     assert "2 consecutive probes passed" in report
 
 
 def test_actor_programs_use_unique_logs_and_force_kill_escalation(monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     commands = []
 
     def fake_run_command(command, timeout, cap):
@@ -203,16 +201,16 @@ def test_actor_programs_use_unique_logs_and_force_kill_escalation(monkeypatch):
 
     assert all("timeout --signal=TERM --kill-after=5s 90s" in command
                for command in commands)
-    logs = [re.search(r"/tmp/forge_run_[0-9a-f]{24}\.log", command).group(0)
+    logs = [re.search(r"/tmp/rsiagent_run_[0-9a-f]{24}\.log", command).group(0)
             for command in commands]
     assert logs[0] != logs[1]
-    assert all("/tmp/forge_run.log" not in command for command in commands)
+    assert all("/tmp/rsiagent_run.log" not in command for command in commands)
 
 
 def test_large_program_streams_losslessly_instead_of_using_shell_argv(
         monkeypatch):
     payload = "BEGIN-LARGE-PROGRAM\n" + ("x = 1\n" * 20_000) + "END-LARGE-PROGRAM\n"
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     staged = {}
     commands = []
 
@@ -225,7 +223,7 @@ def test_large_program_streams_losslessly_instead_of_using_shell_argv(
     def fake_run_command(command, timeout, cap):
         commands.append(command)
         raw = b"large program completed"
-        return ("FORGE_RUN_OUTPUT_BASE64:"
+        return ("RSIAGENT_RUN_OUTPUT_BASE64:"
                 + base64.b64encode(raw).decode("ascii")
                 + "\n[exit 0]")
 
@@ -236,7 +234,7 @@ def test_large_program_streams_losslessly_instead_of_using_shell_argv(
 
     assert staged["bytes"] == payload.encode("utf-8")
     assert re.fullmatch(
-        r"/dev/shm/forge_program_[0-9a-f]{24}\.py",
+        r"/dev/shm/rsiagent_program_[0-9a-f]{24}\.py",
         staged["guest_path"])
     assert staged["timeout"] == 600
     assert len(commands) == 1
@@ -251,7 +249,7 @@ def test_large_program_streams_losslessly_instead_of_using_shell_argv(
 
 def test_large_program_staging_failure_is_explicit_infrastructure(monkeypatch):
     payload = "x = 1\n" * 20_000
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     monkeypatch.setattr(
         vm, "push_file",
         lambda *_args, **_kwargs: (False, "verified stream unavailable"))
@@ -268,13 +266,13 @@ def test_large_program_staging_failure_is_explicit_infrastructure(monkeypatch):
 
 
 def test_actor_program_falls_back_to_dev_shm_and_captures_diagnostics(monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     calls = []
 
     def fake_run_command(command, timeout, cap):
         calls.append((command, timeout, cap))
         if len(calls) == 1:
-            return ("[FORGE STAGING FALLBACK: /tmp unavailable; using /dev/shm]\n"
+            return ("[RSIAGENT STAGING FALLBACK: /tmp unavailable; using /dev/shm]\n"
                     "mktemp: /tmp: Read-only file system\n"
                     "program completed\n[exit 0]")
         return ("mount state:\n/dev/sda3 / ext4 ro,relatime\n"
@@ -284,8 +282,8 @@ def test_actor_program_falls_back_to_dev_shm_and_captures_diagnostics(monkeypatc
     trace = vm.run_script(
         "bash", "printf completed", allow_staging_fallback=True)
 
-    assert "/dev/shm/forge_XXXXXX.sh" in calls[0][0]
-    assert "/dev/shm/forge_run_" in calls[0][0]
+    assert "/dev/shm/rsiagent_XXXXXX.sh" in calls[0][0]
+    assert "/dev/shm/rsiagent_run_" in calls[0][0]
     assert "findmnt -T /home/user" in calls[1][0]
     assert trace.exit_code == 0
     assert trace.infra_fail is False
@@ -295,12 +293,12 @@ def test_actor_program_falls_back_to_dev_shm_and_captures_diagnostics(monkeypatc
 
 
 def test_actor_program_marks_infra_only_when_both_staging_mounts_fail(monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
 
     monkeypatch.setattr(
         vm, "run_command",
         lambda *_args, **_kwargs: (
-            "[FORGE STAGING UNAVAILABLE: /tmp and /dev/shm both failed]\n"
+            "[RSIAGENT STAGING UNAVAILABLE: /tmp and /dev/shm both failed]\n"
             "/tmp: Read-only file system\n/dev/shm: No space left on device"))
 
     trace = vm.run_script(
@@ -310,15 +308,15 @@ def test_actor_program_marks_infra_only_when_both_staging_mounts_fail(monkeypatc
     assert trace.infra_fail is True
 
 
-def test_program_output_cannot_forge_a_transport_failure(monkeypatch):
+def test_program_output_cannot_rsiagent_a_transport_failure(monkeypatch):
     """A live-process listing may quote wrapper sentinels as ordinary evidence."""
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     program_output = (
         "ps: wrapper contains "
-        "[FORGE STAGING UNAVAILABLE: /tmp and /dev/shm both failed] "
+        "[RSIAGENT STAGING UNAVAILABLE: /tmp and /dev/shm both failed] "
         "and mktemp: Read-only file system")
     envelope = (
-        "FORGE_RUN_OUTPUT_BASE64:"
+        "RSIAGENT_RUN_OUTPUT_BASE64:"
         + base64.b64encode(program_output.encode("utf-8")).decode("ascii")
         + "\n[exit 0]")
     monkeypatch.setattr(
@@ -334,7 +332,7 @@ def test_program_output_cannot_forge_a_transport_failure(monkeypatch):
 
 def test_staging_stderr_after_output_envelope_captures_diagnostics(monkeypatch):
     """The guest API returns wrapper stderr separately, after stdout's envelope."""
-    vm = ForgeVM(SimpleNamespace(controller=SimpleNamespace(http_server="http://guest")))
+    vm = RSIAgentVM(SimpleNamespace(controller=SimpleNamespace(http_server="http://guest")))
     calls = []
 
     def fake_post(_url, *, json, timeout):
@@ -343,8 +341,8 @@ def test_staging_stderr_after_output_envelope_captures_diagnostics(monkeypatch):
             data = {"output": "mount state:\n/ /dev/sda3 ext4 ro,relatime\n"}
         else:
             data = {
-                "output": "FORGE_RUN_OUTPUT_BASE64:\n[exit 2]\n",
-                "error": "mktemp: /tmp/forge_XXXXXX.sh: Read-only file system\n",
+                "output": "RSIAGENT_RUN_OUTPUT_BASE64:\n[exit 2]\n",
+                "error": "mktemp: /tmp/rsiagent_XXXXXX.sh: Read-only file system\n",
             }
         return SimpleNamespace(status_code=200, json=lambda: data)
 
@@ -361,7 +359,7 @@ def test_staging_stderr_after_output_envelope_captures_diagnostics(monkeypatch):
 
 
 def test_http_timeout_recovers_only_its_unique_partial_log(monkeypatch):
-    vm = ForgeVM(SimpleNamespace())
+    vm = RSIAgentVM(SimpleNamespace())
     calls = []
 
     def fake_run_command(command, timeout, cap):
@@ -375,12 +373,12 @@ def test_http_timeout_recovers_only_its_unique_partial_log(monkeypatch):
     monkeypatch.setattr(vm, "run_command", fake_run_command)
     trace = vm.run_script("bash", "sleep 999", timeout=120)
 
-    match = re.search(r"/tmp/forge_run_[0-9a-f]{24}\.log", calls[0][0])
+    match = re.search(r"/tmp/rsiagent_run_[0-9a-f]{24}\.log", calls[0][0])
     assert match is not None
     run_log = match.group(0)
     assert calls[1][1:] == (30, 0)
     assert f"base64 -w0 {run_log}" in calls[1][0]
-    assert "FORGE_RUN_OUTPUT_BASE64:" in calls[1][0]
+    assert "RSIAGENT_RUN_OUTPUT_BASE64:" in calls[1][0]
     assert calls[2] == (f"rm -f {run_log}", 30, 1000)
     assert trace.timed_out is True
     assert "isolated partial output" in trace.stdout
@@ -400,7 +398,7 @@ def test_vm_push_file_streams_through_osworld_setup_endpoint(
 
     monkeypatch.setattr("env.vm.requests.post", fake_post)
     controller = SimpleNamespace(http_server="http://controller.invalid")
-    vm = ForgeVM(SimpleNamespace(controller=controller))
+    vm = RSIAgentVM(SimpleNamespace(controller=controller))
 
     assert vm.push_file(str(source), "/tmp/candidate.tgz") == (True, "")
     assert seen["url"] == "http://controller.invalid/setup/upload"
@@ -422,7 +420,7 @@ def test_vm_push_file_prefers_verified_direct_stream_on_docker(
         }})
     provider = SimpleNamespace(container=container)
     controller = SimpleNamespace(http_server="http://controller.invalid")
-    vm = ForgeVM(SimpleNamespace(
+    vm = RSIAgentVM(SimpleNamespace(
         provider_name="docker", provider=provider, controller=controller))
     calls = []
 
@@ -444,74 +442,20 @@ def test_direct_stream_stages_atomic_part_on_destination_filesystem():
     from env.vm import _atomic_guest_part_path
 
     assert _atomic_guest_part_path(
-        "/dev/shm/forge_program_abc.sh", "123") == (
-            "/dev/shm/.forge_program_abc.sh.forge-part-123")
+        "/dev/shm/rsiagent_program_abc.sh", "123") == (
+            "/dev/shm/.rsiagent_program_abc.sh.rsiagent-part-123")
     assert _atomic_guest_part_path(
         "/tmp/candidate.tgz", "456") == (
-            "/tmp/.candidate.tgz.forge-part-456")
+            "/tmp/.candidate.tgz.rsiagent-part-456")
     assert _atomic_guest_part_path("/", "789") == ""
 
 
-@pytest.mark.parametrize(("stdout", "payload"), [
-    ("echo FAIL[exit 0]", "echo FAIL"),
-    ("echo FAIL\n[exit 0]\n", "echo FAIL"),
-    ("failed command[exit 17]", "failed command"),
-    ("before [exit 4]\nafter[exit 0]", "before [exit 4]\nafter"),
-    ("legitimate terminal [exit 7][exit 0]",
-     "legitimate terminal [exit 7]"),
-    ("prefix[exit 0]suffix", "prefix[exit 0]suffix"),
-    ("not numeric [exit x]", "not numeric [exit x]"),
-    ("[exit 124]", ""),
-])
-def test_strip_run_script_trailer_removes_only_one_terminal_transport(
-        stdout, payload):
-    assert _strip_run_script_trailer(stdout) == payload
 
 
-def test_guest_cat_handles_trailer_joined_to_file_without_final_newline():
-    class VM:
-        def run_script(self, lang, code):
-            assert lang == "bash"
-            assert code == "cat ~/instance_next.md 2>/dev/null"
-            return SimpleNamespace(stdout="FINAL:\n9. echo FAIL[exit 0]")
-
-    assert _guest_cat(VM(), "~/instance_next.md") == \
-        "FINAL:\n9. echo FAIL"
 
 
-def test_terminal_transport_suffix_is_correctable_card_validation_error(
-        monkeypatch):
-    monkeypatch.setattr(exam_fence, "audit_text",
-                        lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(e8_loop, "audit_text",
-                        lambda *_args, **_kwargs: [])
-
-    project = e7_loop._validate_project_transport(
-        _PROJECT + "[exit 0]", "terminal-transport", 2)
-    night = e7_loop._validate_night_card(_NIGHT + "[exit 9]")
-    drill = e8_loop.validate_card(_E8_CARD + "[exit 2]")
-
-    assert "project: terminal [exit N] transport trailer" in \
-        project["reasons"]
-    assert "transport: terminal [exit N] trailer" in night["reasons"]
-    assert "transport: terminal [exit N] trailer" in drill["reasons"]
-    assert e6_loop.accept_card(_E6_CARD + "[exit 3]")["status"] == \
-        "malformed"
 
 
-def test_interior_exit_literal_is_not_a_transport_validation_error(
-        monkeypatch):
-    monkeypatch.setattr(exam_fence, "audit_text",
-                        lambda *_args, **_kwargs: [])
-    project = _PROJECT.replace(
-        "supplied generic fixture.",
-        "supplied generic fixture; preserve the literal [exit 7] label.")
-
-    checked = e7_loop._validate_project_transport(
-        project, "terminal-transport", 2)
-
-    assert not any("terminal [exit N]" in reason
-                   for reason in checked["reasons"])
 
 
 class _GateVM:
@@ -521,23 +465,3 @@ class _GateVM:
     def run_script(self, _lang, code, **_kwargs):
         output = "PASS" if "fixture_guard" in code else "FAIL"
         return SimpleNamespace(stdout=output + "[exit 0]")
-
-
-def test_e7_gate_uses_shared_joined_trailer_parser():
-    result = e7_loop.run_dry_gate(
-        _GateVM(), ["1. test -f /home/user/output && echo PASS || echo FAIL"])
-
-    assert result["accept"] is True
-    assert result["per_criterion"][0]["run1"] == "FAIL"
-    assert result["per_criterion"][0]["run2"] == "FAIL"
-
-
-def test_e8_gate_uses_shared_joined_trailer_parser():
-    result = e8_loop.run_dry_gate(_GateVM(), [
-        "1. test -f /home/user/output && echo PASS || echo FAIL",
-        "2. fixture_guard && echo PASS || echo FAIL # GUARD",
-    ])
-
-    assert result["accept"] is True
-    assert result["per_criterion"][0]["run1"] == "FAIL"
-    assert result["per_criterion"][1]["run1"] == "PASS"

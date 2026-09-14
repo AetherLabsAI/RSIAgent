@@ -22,6 +22,7 @@ id_rsa*
 
 # Python and editor state
 .venv/
+.venv-*/
 venv/
 __pycache__/
 *.py[cod]

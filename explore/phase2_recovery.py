@@ -12,16 +12,16 @@ import json
 from pathlib import Path
 
 from explore.charter import self_evolving_curriculum_charter
-from explore.e15_loop import (
-    CURRICULUM_HANDOFF, CURRICULUM_NOTES, E15InfrastructureError,
+from explore.practice_loop import (
+    CURRICULUM_HANDOFF, CURRICULUM_NOTES, PracticeInfrastructureError,
     _curriculum_runtime_contract, _manifest, _read_memory_tree,
 )
-from explore.e15_v12_loop import _memory_tree_sha256
+from explore.target_learning import _memory_tree_sha256
 
 
 def require(ok, message):
     if not ok:
-        raise E15InfrastructureError("Phase-2 resume refused: " + message)
+        raise PracticeInfrastructureError("Phase-2 resume refused: " + message)
 
 
 def read(path):

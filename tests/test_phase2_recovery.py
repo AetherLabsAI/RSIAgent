@@ -11,9 +11,9 @@ from config.settings import load
 from core.self_evolving_loop import (
     SelfEvolvingStart, TargetVerdict, run_self_evolving_loop,
 )
-from explore import e15_loop as E, unified_evolution as U
+from explore import practice_loop as E, unified_evolution as U
 from explore.phase2_recovery import Phase2CurriculumRecovery, sha
-from explore.e15_v12_loop import _memory_tree_sha256
+from explore.target_learning import _memory_tree_sha256
 from test_self_evolving_loop import _hooks as target_hooks
 from test_unified_evolution import _VM, _hooks
 
@@ -128,7 +128,7 @@ def test_admission_refuses_unsafe_boundaries_without_writes(tmp_path, fault):
         plan['prior_wall_secs_conservative'] = f.configs['curriculum'].wall_clock_secs + 1
         save(f.plan, plan)
     before = {str(p): sha(p) for p in tmp_path.rglob('*') if p.is_file()}
-    with pytest.raises(E.E15InfrastructureError):
+    with pytest.raises(E.PracticeInfrastructureError):
         admit(f)
     assert before == {str(p): sha(p) for p in tmp_path.rglob('*') if p.is_file()}
 
@@ -178,8 +178,8 @@ def test_actionless_guard_preserves_terminal_authority_and_productive_resets(
         tmp_path, actions, terminal, expected):
     class TransportVM(_VM):
         def run_command(self, command, **kwargs):
-            if 'E15_REMOVE_TREE_RC' in command:
-                return 'E15_REMOVE_TREE_RC=0'
+            if 'RSI_REMOVE_TREE_RC' in command:
+                return 'RSI_REMOVE_TREE_RC=0'
             return super().run_command(command, **kwargs)
     vm, calls = TransportVM(), []
     def run(prompt, vm, cfg, sink, **kwargs):
@@ -197,7 +197,7 @@ def test_actionless_guard_preserves_terminal_authority_and_productive_resets(
             handoff_path=E.CURRICULUM_HANDOFF, token_pattern=E._CURRICULUM_TOKEN,
             sink_root=str(tmp_path), target='target', require_completed_publication=True)
     if expected == 'infra':
-        with pytest.raises(E.E15InfrastructureError, match='no executable progress'):
+        with pytest.raises(E.PracticeInfrastructureError, match='no executable progress'):
             invoke()
         assert json.loads((tmp_path / 'transport_stop.json').read_text())['semantic_decision'] is None
     else:
@@ -227,7 +227,7 @@ def test_recovery_cannot_change_model_via_context_amendment(tmp_path):
     plan = json.loads(f.plan.read_text())
     plan['context_fields']['model'] = 'another-model'
     save(f.plan, plan)
-    with pytest.raises(E.E15InfrastructureError, match='non-context'):
+    with pytest.raises(E.PracticeInfrastructureError, match='non-context'):
         admit(f)
 
 
@@ -239,7 +239,7 @@ def test_productive_segments_still_share_one_role_budget(tmp_path, monkeypatch):
         return SimpleNamespace(status='budget', programs_run=1, looks=0, iters=1, wall_secs=4), []
     hooks = dataclasses.replace(_hooks(vm, [], []), run_attempt=run)
     cfg = dataclasses.replace(load(None), max_iters=2, wall_clock_secs=100)
-    with pytest.raises(E.E15InfrastructureError, match='cumulative transport budget'):
+    with pytest.raises(E.PracticeInfrastructureError, match='cumulative transport budget'):
         E._run_handoff_phase(
             hooks=hooks, vm=vm, cfg=cfg, prompt='search', role='CURRICULUM',
             handoff_path=E.CURRICULUM_HANDOFF, token_pattern=E._CURRICULUM_TOKEN,

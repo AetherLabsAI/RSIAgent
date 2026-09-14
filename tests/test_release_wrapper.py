@@ -26,8 +26,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     spec = load_protocol(args.protocol)
     assert args.execute == "RUN-RECURSIVE-IMPROVEMENT-" + args.phase.upper()
-    record = {"phase": args.phase, "cache": os.environ["FORGE_OSWORLD_CACHE_DIR"],
-              "root": os.environ["FORGE_ROOT"]}
+    record = {"phase": args.phase, "cache": os.environ["RSIAGENT_OSWORLD_CACHE_DIR"],
+              "root": os.environ["RSIAGENT_ROOT"]}
     with Path("calls.jsonl").open("a") as handle:
         handle.write(json.dumps(record) + "\\n")
     print(args.phase + " output", flush=True)

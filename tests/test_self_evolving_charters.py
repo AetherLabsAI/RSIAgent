@@ -49,7 +49,7 @@ def test_curriculum_is_persistent_meta_search_not_solver_or_grader():
     assert "DECISION: STALLED" in prompt
     assert "natural-language project" in prompt
     assert "success commands" in prompt
-    assert ".e15_actor_execution" not in prompt
+    assert ".practice_actor_execution" not in prompt
 
 
 def test_curriculum_requires_an_exact_target_seed():
@@ -57,7 +57,7 @@ def test_curriculum_requires_an_exact_target_seed():
         self_evolving_curriculum_charter("  ")
 
 
-def test_v12_curriculum_can_request_but_cannot_certify_target_convergence():
+def test_target_curriculum_can_request_but_cannot_certify_target_convergence():
     prompt = self_evolving_curriculum_charter(
         TARGET,
         latest_outcome=(
@@ -135,7 +135,7 @@ def test_curriculum_modes_are_mutually_exclusive():
             TARGET, target_gated=True, phase1_exploration=True)
 
 
-def test_v12_target_actor_is_fresh_and_diagnosis_is_separate_from_memory():
+def test_target_target_actor_is_fresh_and_diagnosis_is_separate_from_memory():
     actor = self_evolving_target_actor_charter(
         TARGET, memory_listing="lesson.md 100B")
     diagnosis = self_evolving_actor_learning_diagnosis_msg(
@@ -179,7 +179,7 @@ def test_fresh_actor_gets_project_and_memory_but_not_a_grade():
         " ".join(prompt.split())
     assert "MECHANICAL GRADE" not in prompt
     assert "SUCCESS:" not in prompt
-    assert ".e15_actor_execution" not in prompt
+    assert ".practice_actor_execution" not in prompt
 
 
 def test_code_as_policy_is_an_actor_control_channel_not_shared_semantics():
@@ -272,7 +272,7 @@ def test_verifier_does_not_invent_gui_only_provenance():
 
 
 def test_practice_verifier_receives_immutable_original_fixture_view():
-    original = "/home/user/.e15_original_project"
+    original = "/home/user/.practice_original_project"
     prompt = self_evolving_verifier_charter(
         "Transform the supplied input without replacing it.",
         original_fixtures_path=original,

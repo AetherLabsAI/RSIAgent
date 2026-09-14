@@ -8,7 +8,7 @@ import pytest
 
 from explore import phase1_boundary_recovery as recovery
 from explore import phase1_wave as wave
-from explore.e15_loop import E15BoundaryError, E15InfrastructureError, _manifest
+from explore.practice_loop import PracticeBoundaryError, PracticeInfrastructureError, _manifest
 
 
 def write(path, value):
@@ -84,7 +84,7 @@ def test_resume_rejects_memory_drift_partial_learning_and_later_phases(tmp_path,
         state = json.loads((root / "state.json").read_text())
         state["project_budget"] = 16
         write(root / "state.json", state)
-    with pytest.raises(E15InfrastructureError):
+    with pytest.raises(PracticeInfrastructureError):
         validate(root)
     assert not (root / "boundary_recovery").exists()
 
@@ -100,7 +100,7 @@ def test_zero_project_boot_failure_needs_no_nonexistent_wave_event(tmp_path):
 def test_quarantined_boundary_cannot_resume_after_clean_transcript_audits(
         tmp_path, monkeypatch, count):
     from config.settings import Config
-    from explore.e15_loop import E15Hooks
+    from explore.practice_loop import PracticeHooks
 
     root = boundary(tmp_path, count=count)
     state = json.loads((root / "state.json").read_text())
@@ -112,7 +112,7 @@ def test_quarantined_boundary_cannot_resume_after_clean_transcript_audits(
     preserved = {p.relative_to(root): p.read_bytes()
                  for p in root.rglob("*") if p.is_file()}
     started = []
-    hooks = E15Hooks(validate_corpus=lambda *a: None,
+    hooks = PracticeHooks(validate_corpus=lambda *a: None,
                      audit_text=lambda *a, **k: [],
                      audit_transcripts=lambda *a, **k: [])
     decision = wave.WaveDecision(
@@ -124,7 +124,7 @@ def test_quarantined_boundary_cannot_resume_after_clean_transcript_audits(
         started.append(True)
         return SimpleNamespace(close=lambda: None), object()
 
-    with pytest.raises(E15InfrastructureError, match="quarantined"):
+    with pytest.raises(PracticeInfrastructureError, match="quarantined"):
         wave.evolve_parallel_phase1(
             root=str(root), target_direction="public instruction",
             actor_cfg=Config(), curriculum_cfg=Config(), memory_cfg=Config(),
@@ -150,7 +150,7 @@ def test_broken_guest_restarts_once_and_archives_unscored_attempt(tmp_path, monk
         if len(calls) == 1:
             write(episode / "actor/iter_01/trace_meta.json", {"infra_fail": True})
             (episode / "actor/iter_01/trace.txt").write_text("mktemp: Read-only file system")
-            raise E15InfrastructureError("ACTOR phase ended at infrastructure status infra")
+            raise PracticeInfrastructureError("ACTOR phase ended at infrastructure status infra")
         assert not (episode / "actor").exists()
         assert (episode / "fixtures/manifest.json").is_file()
         return expected
@@ -169,9 +169,9 @@ def test_boundary_and_committed_verdict_are_never_retried(tmp_path, monkeypatch,
         path.parent.mkdir(parents=True)
         path.write_text("VERDICT: FAIL")
     def branch(**kwargs):
-        raise TimeoutError("physical fault") if committed else E15BoundaryError("boundary")
+        raise TimeoutError("physical fault") if committed else PracticeBoundaryError("boundary")
     monkeypatch.setattr(wave, "_execute_branch", branch)
-    with pytest.raises((TimeoutError, E15BoundaryError)):
+    with pytest.raises((TimeoutError, PracticeBoundaryError)):
         wave._execute_branch_with_infra_retry(episode_dir=episode)
     assert not (episode / "infra_attempts").exists()
 
@@ -180,7 +180,7 @@ def test_boundary_and_committed_verdict_are_never_retried(tmp_path, monkeypatch,
 
 def test_parallel_failure_drains_and_closes_successful_sibling(tmp_path, monkeypatch):
     import time
-    from explore.e15_loop import E15Hooks
+    from explore.practice_loop import PracticeHooks
     from config.settings import Config
     closed = []
     projects = tuple(wave.WaveProject(str(i), "public instruction") for i in (1, 2))
@@ -190,12 +190,12 @@ def test_parallel_failure_drains_and_closes_successful_sibling(tmp_path, monkeyp
     monkeypatch.setattr(wave, "_push_canonical_memory", lambda *a: None)
     def branch(**kw):
         if kw["project_index"] == 1:
-            raise E15InfrastructureError("failed sibling")
+            raise PracticeInfrastructureError("failed sibling")
         time.sleep(0.02)
         return SimpleNamespace(project_index=2, project=projects[1], terminal_outcome="FAIL",
                                desktop=SimpleNamespace(close=lambda: closed.append(2)))
     monkeypatch.setattr(wave, "_execute_branch_with_infra_retry", branch)
-    hooks = E15Hooks(validate_corpus=lambda *a: None, audit_text=lambda *a, **k: [])
+    hooks = PracticeHooks(validate_corpus=lambda *a: None, audit_text=lambda *a, **k: [])
     result = wave.evolve_parallel_phase1(
         root=str(tmp_path / "lineage"), target_direction="public instruction",
         actor_cfg=Config(), curriculum_cfg=Config(), memory_cfg=Config(),
@@ -210,7 +210,7 @@ def test_parallel_failure_drains_and_closes_successful_sibling(tmp_path, monkeyp
 
 def test_boot_adapter_caches_only_one_allocation_and_extends_waits(monkeypatch):
     from contextlib import nullcontext
-    import qemu_provider as adapter
+    import benchmarks.osworld.provider as adapter
     queried, waits = [], []
     class Provider:
         container = None
@@ -238,7 +238,7 @@ def test_boot_adapter_caches_only_one_allocation_and_extends_waits(monkeypatch):
 
 def test_guest_cleanup_removes_its_anonymous_volume_even_when_stop_times_out(monkeypatch):
     from contextlib import nullcontext
-    import qemu_provider as adapter
+    import benchmarks.osworld.provider as adapter
     calls = []
     class Container:
         def stop(self, timeout):
@@ -269,9 +269,9 @@ def test_cold_readiness_retry_is_bounded_and_before_any_task_setup(
         tmp_path, monkeypatch, failures, owner, error, expected):
     from contextlib import contextmanager
     import os
-    import qemu_provider as adapter
-    monkeypatch.setenv("FORGE_VM_OWNER", owner)
-    monkeypatch.setattr(adapter, "__file__", str(tmp_path / "qemu_provider.py"))
+    import benchmarks.osworld.provider as adapter
+    monkeypatch.setenv("RSIAGENT_VM_OWNER", owner)
+    monkeypatch.setattr(adapter, "__file__", str(tmp_path / "benchmarks/osworld/provider.py"))
     calls, removed, slots = [], [], []
     @contextmanager
     def slot():
@@ -281,8 +281,8 @@ def test_cold_readiness_retry_is_bounded_and_before_any_task_setup(
     class Container:
         def __init__(self, number):
             self.id = str(number)
-            self.labels = {"forge.owner": owner, "forge.host_pid": str(os.getpid()),
-                           "forge.launch_token": str(number)}
+            self.labels = {"rsiagent.owner": owner, "rsiagent.host_pid": str(os.getpid()),
+                           "rsiagent.launch_token": str(number)}
             self.attrs = {"State": {"Status": "running"}}
         def reload(self): pass
         def logs(self, **kwargs): return b"cold boot diagnostics"
@@ -321,10 +321,10 @@ def test_cold_readiness_retry_is_bounded_and_before_any_task_setup(
 
 
 def test_failed_boot_cannot_remove_a_foreign_owner(tmp_path, monkeypatch):
-    import qemu_provider as adapter
+    import benchmarks.osworld.provider as adapter
     from env.qemu_rollback import QemuRollbackError
     class Container:
-        labels = {"forge.owner": "unrelated"}
+        labels = {"rsiagent.owner": "unrelated"}
         def reload(self): pass
         def remove(self, **kwargs): pytest.fail("foreign VM removed")
     with pytest.raises(QemuRollbackError, match="ownership mismatch"):
@@ -368,25 +368,25 @@ fi
 
 
 def test_dnsmasq_start_retry_requires_explicit_opt_in(monkeypatch):
-    from qemu_provider import _LoopbackContainers
+    from benchmarks.osworld.provider import _LoopbackContainers
     calls = []
     collection = SimpleNamespace(run=lambda *a, **kw: calls.append(kw))
-    monkeypatch.delenv('FORGE_DNSMASQ_START_RETRY', raising=False)
-    monkeypatch.setenv('FORGE_VM_OWNER', 'unrelated_experiment')
+    monkeypatch.delenv('RSIAGENT_DNSMASQ_START_RETRY', raising=False)
+    monkeypatch.setenv('RSIAGENT_VM_OWNER', 'unrelated_experiment')
     _LoopbackContainers(collection).run('image', environment={'KEEP':'unchanged'}, volumes={})
     assert calls[-1]['environment'] == {'KEEP':'unchanged'} and calls[-1]['volumes'] == {}
-    monkeypatch.setenv('FORGE_DNSMASQ_START_RETRY', '1')
-    monkeypatch.setenv('FORGE_VM_OWNER', 'example-study/worker-b/phase1')
+    monkeypatch.setenv('RSIAGENT_DNSMASQ_START_RETRY', '1')
+    monkeypatch.setenv('RSIAGENT_VM_OWNER', 'example-study/worker-b/phase1')
     _LoopbackContainers(collection).run('image', environment={'KEEP':'unchanged'},
         volumes={'system':{'bind':'/System.qcow2','mode':'ro'}})
-    assert calls[-1]['environment'] == {'KEEP':'unchanged', 'DNSMASQ':'/run/forge-dnsmasq-start'}
+    assert calls[-1]['environment'] == {'KEEP':'unchanged', 'DNSMASQ':'/run/rsiagent-dnsmasq-start'}
     assert calls[-1]['volumes']['system'] == {'bind':'/System.qcow2','mode':'ro'}
-    mounts = [v for v in calls[-1]['volumes'].values() if v['bind']=='/run/forge-dnsmasq-start']
-    assert mounts == [{'bind':'/run/forge-dnsmasq-start','mode':'ro'}]
+    mounts = [v for v in calls[-1]['volumes'].values() if v['bind']=='/run/rsiagent-dnsmasq-start']
+    assert mounts == [{'bind':'/run/rsiagent-dnsmasq-start','mode':'ro'}]
 
 
 def test_failed_container_removal_retains_handle_for_cleanup_retry(monkeypatch):
-    import qemu_provider as adapter
+    import benchmarks.osworld.provider as adapter
     class Container:
         def stop(self, timeout): pass
         def remove(self, **kwargs): raise ConnectionError("daemon unavailable")

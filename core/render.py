@@ -82,7 +82,7 @@ def render_cmd(path: str, out_png: str) -> str:
         return (f"pdftoppm -f 1 -l 1 -png -singlefile {path!r} "
                 f"{out_png[:-4]!r} 2>/dev/null")
     if kind == "office":      # page 1 via headless LO, move to target name
-        return (f"soffice --headless --convert-to png --outdir /tmp/forge_insp "
-                f"{path!r} >/dev/null 2>&1; mv -f /tmp/forge_insp/*.png {out_png!r} "
+        return (f"soffice --headless --convert-to png --outdir /tmp/rsiagent_insp "
+                f"{path!r} >/dev/null 2>&1; mv -f /tmp/rsiagent_insp/*.png {out_png!r} "
                 "2>/dev/null")
     return ""

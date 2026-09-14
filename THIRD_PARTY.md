@@ -14,3 +14,11 @@ denylist fixtures; they are never Agent prompt material.
 Python dependencies are installed separately from `requirements.txt`; each
 retains its own license. Model names identify configurable third-party services.
 Users provide their own service accounts and credentials.
+
+The [ALE evaluation framework](https://github.com/rdi-berkeley/agents-last-exam)
+is installed separately at the revision in `config/ale/protocol.lock.json`.
+Its source and task data have separate upstream license files (`LICENSE` and
+`LICENSE-DATA`). The QEMU runner derives from the pinned
+`agentslastexam/ale-qemu` image. Guest operating systems, licensed applications,
+images, and task datasets are not redistributed by RSIAgent; use the upstream
+installation and access instructions.

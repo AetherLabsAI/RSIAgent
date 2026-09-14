@@ -20,7 +20,6 @@ import posixpath
 import re
 import secrets
 import shlex
-import tarfile
 import tempfile
 import time
 from dataclasses import dataclass
@@ -363,15 +362,18 @@ class AgenticVerifierExecutor:
         self._private_paths = _normalize_private_paths(
             hide_actor_memory, private_paths)
         self._scratch_archive = scratch_archive
+        checkpoint_options = {}
+        if hasattr(vm, "verifier_checkpoint_timeout"):
+            checkpoint_options["timeout"] = vm.verifier_checkpoint_timeout
         self._rollback_transaction = (
-            QemuRollbackTransaction(vm)
+            QemuRollbackTransaction(vm, **checkpoint_options)
             if self._execution_mode == ROLLBACK_MIRROR else None)
         self._rollback_private_paths_hidden = False
         password = str(getattr(getattr(vm, "env", None),
                                "client_password", "") or "")
         self._sudo_password_b64 = base64.b64encode(
             password.encode("utf-8")).decode("ascii")
-        self._workspace = "/mnt/forge_verifier_" + secrets.token_hex(16)
+        self._workspace = "/mnt/rsiagent_verifier_" + secrets.token_hex(16)
         self._namespace_pid = None
         self._desktop_uid = None
         self._desktop_gid = None
@@ -405,7 +407,7 @@ class AgenticVerifierExecutor:
 
     def _run_harness_script(self, lang, code, *, timeout, cap):
         control = getattr(getattr(self._vm, "env", None),
-                          "_forge_verifier_control", None)
+                          "_rsiagent_verifier_control", None)
         if control is not None:
             return control.run_script(lang, code, timeout=timeout, cap=cap)
         return _run_script_with_staging_fallback(
@@ -492,9 +494,9 @@ class AgenticVerifierExecutor:
             return _trace(self._init_reason, 125, infra_fail=True)
         self._workspace_attempted = True
         token = secrets.token_hex(12)
-        keeper_path = f"/tmp/forge_verifier_keeper_{token}.sh"
-        status_path = f"/tmp/forge_verifier_keeper_{token}.status"
-        log_path = f"/tmp/forge_verifier_keeper_{token}.log"
+        keeper_path = f"/tmp/rsiagent_verifier_keeper_{token}.sh"
+        status_path = f"/tmp/rsiagent_verifier_keeper_{token}.status"
+        log_path = f"/tmp/rsiagent_verifier_keeper_{token}.log"
         keeper = r'''#!/bin/bash
 set -eu
 umask 077
@@ -510,7 +512,7 @@ trap 'exit 0' TERM INT HUP
 mount --make-rprivate /
 mount -t tmpfs \
   -o nosuid,nodev,mode=0700,uid="$uid_value",gid="$gid_value" \
-  forge-verifier-scratch "$workspace_path"
+  rsiagent-verifier-scratch "$workspace_path"
 test -w "$workspace_path"
 printf 'READY %s\n' "$$" > "$status_path"
 while :; do sleep 3600; done
@@ -576,7 +578,7 @@ if mountpoint -q "$workspace_path" || run_privileged setpriv \
   run_privileged kill "$namespace_pid" 2>/dev/null || true
   exit 125
 fi
-printf 'FORGE_VERIFIER_NAMESPACE=%s:%s:%s\n' \
+printf 'RSIAGENT_VERIFIER_NAMESPACE=%s:%s:%s\n' \
   "$namespace_pid" "$uid_value" "$gid_value"
 run_privileged rm -f -- "$status_path"
 rm -f -- "$keeper_path" "$log_path"
@@ -589,7 +591,7 @@ rm -f -- "$keeper_path" "$log_path"
                 "not executed.\n" + (result.stdout or "(no diagnostic output)"))
             return _trace(self._init_reason, 125, infra_fail=True)
         marker = re.search(
-            r"(?m)^FORGE_VERIFIER_NAMESPACE=(\d+):(\d+):(\d+)$",
+            r"(?m)^RSIAGENT_VERIFIER_NAMESPACE=(\d+):(\d+):(\d+)$",
             result.stdout or "")
         if marker is None:
             self._init_reason = (
@@ -629,7 +631,7 @@ rm -f -- "$keeper_path" "$log_path"
 set -eu
 sudo_password_b64={self._sudo_password_b64!r}
 hidden_payload={encoded!r}
-quarantine=/root/.forge_verifier_hidden_{token}
+quarantine=/root/.rsiagent_verifier_hidden_{token}
 run_privileged() {{
   printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- "$@"
 }}
@@ -646,12 +648,12 @@ printf %s "$hidden_payload" | base64 -d | while IFS= read -r hidden_path \
     run_privileged chmod -R go-rwx "$quarantine/$index"
   fi
 done
-printf FORGE_ROLLBACK_PRIVATE_PATHS_HIDDEN
+printf RSIAGENT_ROLLBACK_PRIVATE_PATHS_HIDDEN
 """
         trace = self._run_harness_script(
             "bash", script, timeout=max(30, int(timeout)), cap=0)
         if (trace.exit_code != 0 or trace.infra_fail
-                or "FORGE_ROLLBACK_PRIVATE_PATHS_HIDDEN" not in trace.stdout):
+                or "RSIAGENT_ROLLBACK_PRIVATE_PATHS_HIDDEN" not in trace.stdout):
             return _trace(
                 "Verifier rollback mirror could not quarantine Actor-private "
                 "paths.\n" + trace.stdout, 125, infra_fail=True)
@@ -664,7 +666,7 @@ printf FORGE_ROLLBACK_PRIVATE_PATHS_HIDDEN
             return _trace(
                 "Verifier private mount namespace has no keeper identity.", 125,
                 infra_fail=True)
-        marker = "FORGE_VERIFIER_NAMESPACE_HEALTHY"
+        marker = "RSIAGENT_VERIFIER_NAMESPACE_HEALTHY"
         wrapper = f"""\
 set -eu
 workspace_path={self._workspace!r}
@@ -715,7 +717,7 @@ printf '{marker}\n'
         # after the guest's ext4 root has remounted read-only. /dev/shm is a
         # separate writable tmpfs in the OSWorld guest; model-authored programs
         # still execute only inside the nested effect-isolation namespace.
-        script_path = f"/dev/shm/forge_verifier_host_{token}.{extension}"
+        script_path = f"/dev/shm/rsiagent_verifier_host_{token}.{extension}"
         encoded = base64.b64encode((code or "").encode("utf-8")).decode("ascii")
         identity = ""
         if as_desktop:
@@ -760,7 +762,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
                 "Verifier scratch restore is unavailable on this VM transport.",
                 125, infra_fail=True)
         local = tempfile.NamedTemporaryFile(
-            prefix="forge-verifier-scratch-", suffix=".tar", delete=False)
+            prefix="rsiagent-verifier-scratch-", suffix=".tar", delete=False)
         try:
             local.write(archive)
             local.flush()
@@ -772,7 +774,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
             # putting both copies on one tmpfs made large, valid Verifier
             # evidence fail with ENOSPC before extraction could begin.
             guest_archive = (
-                "/tmp/forge_verifier_restore_" + secrets.token_hex(12) + ".tar")
+                "/tmp/rsiagent_verifier_restore_" + secrets.token_hex(12) + ".tar")
             ok, reason = push_file(local.name, guest_archive)
             if not ok:
                 return _trace(
@@ -838,7 +840,7 @@ archive.unlink(missing_ok=True)
         # fallback, not a byte or file-count cap.
         for transport_root in ("/tmp", "/dev/shm"):
             archive_path = (
-                transport_root + "/forge_verifier_export_" +
+                transport_root + "/rsiagent_verifier_export_" +
                 archive_token + ".tar")
             code = f'''import os, pathlib, stat, tarfile
 root = {source_path!r}
@@ -965,7 +967,7 @@ finally:
         if not (requested == root or requested.startswith(root + "/")):
             return None, "private Verifier fetch path escaped its workspace"
         token = secrets.token_hex(16)
-        staged = f"/tmp/forge_verifier_fetch_{token}.bin"
+        staged = f"/tmp/rsiagent_verifier_fetch_{token}.bin"
         code = f'''import os, pathlib, shutil, stat
 root = pathlib.Path({root!r}).resolve()
 source = pathlib.Path({requested!r})
@@ -1000,7 +1002,7 @@ destination.chmod(0o600)
             return self._run_rollback_mirror(
                 interpreter, extension, code, timeout)
         action_token = secrets.token_hex(12)
-        ready_token = "__FORGE_VERIFIER_SANDBOX_READY_" + action_token + "__"
+        ready_token = "__RSIAGENT_VERIFIER_SANDBOX_READY_" + action_token + "__"
         program_path = f"{self._workspace}/program_{action_token}.{extension}"
         encoded = base64.b64encode(code.encode("utf-8")).decode("ascii")
 
@@ -1117,7 +1119,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
         PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
         TMPDIR=/tmp XDG_RUNTIME_DIR="/run/user/$2" VERIFIER_SCRATCH="$1" \
         "$4" "$6"; }} 2>&1 | cat
-  ' forge-verifier \
+  ' rsiagent-verifier \
     "$workspace_path" "$uid_value" "$gid_value" \
     {interpreter!r} {ready_token!r} "$program_path" \
     {base64.b64encode(chr(10).join(self._private_paths).encode()).decode()!r} \
@@ -1151,7 +1153,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \
     def _run_rollback_mirror(self, interpreter, extension, code, timeout):
         """Run model code with full live-state visibility inside QEMU rollback."""
         action_token = secrets.token_hex(12)
-        ready_token = "__FORGE_VERIFIER_MIRROR_READY_" + action_token + "__"
+        ready_token = "__RSIAGENT_VERIFIER_MIRROR_READY_" + action_token + "__"
         program_path = f"{self._workspace}/program_{action_token}.{extension}"
         encoded = base64.b64encode(code.encode("utf-8")).decode("ascii")
         wrapper = f"""\
@@ -1191,7 +1193,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$2/bus" \\
         TMPDIR=/tmp VERIFIER_SCRATCH="$1" \\
         "$4" "$6"; }} 2>&1 | cat
-  ' forge-verifier-mirror \\
+  ' rsiagent-verifier-mirror \\
     "$workspace_path" "$uid_value" "$gid_value" \\
     {interpreter!r} {ready_token!r} "$program_path" ignored "$payload"
 """
@@ -1240,11 +1242,11 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
             # the desktop namespace and erase it immediately.
             trusted_vm = self._vm
             capture_dir = (
-                "/tmp/forge_verifier_screen_" + secrets.token_hex(16))
+                "/tmp/rsiagent_verifier_screen_" + secrets.token_hex(16))
 
             class _VerifierScreenVM:
                 def run_command(self, command, timeout=30, cap=4000):
-                    isolated = command.replace("/tmp/forge_render", capture_dir)
+                    isolated = command.replace("/tmp/rsiagent_render", capture_dir)
                     return trusted_vm.run_command(
                         isolated, timeout=timeout, cap=cap)
 
@@ -1267,9 +1269,9 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
             quoted = shlex.quote(str(path))
             resolved = self._vm.run_command(
                 "resolved=$(readlink -f -- " + quoted
-                + ") || exit 2; printf 'FORGE_RESOLVED=%s' \"$resolved\"",
+                + ") || exit 2; printf 'RSIAGENT_RESOLVED=%s' \"$resolved\"",
                 timeout=30, cap=8192) or ""
-            marker = "FORGE_RESOLVED="
+            marker = "RSIAGENT_RESOLVED="
             actual = resolved.split(marker, 1)[1].strip() \
                 if marker in resolved else ""
             if not actual:
@@ -1282,7 +1284,7 @@ printf %s "$sudo_password_b64" | base64 -d | sudo -S -k -p '' -- \\
 
         class _VerifierLookVM:
             def run_command(self, command, timeout=30, cap=4000):
-                isolated = command.replace("/tmp/forge_render", render_dir)
+                isolated = command.replace("/tmp/rsiagent_render", render_dir)
                 trace = isolated_executor(
                     "bash", isolated, timeout=timeout, cap=0)
                 return trace.stdout

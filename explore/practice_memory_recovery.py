@@ -10,7 +10,8 @@ import hashlib
 import json
 import time
 
-from explore import e15_v12_loop as V
+from explore import target_learning as V
+from explore.practice_loop import _manifest, _atomic_json
 from explore.phase2_recovery import read, require, sha
 from explore.practice_evidence_recovery import paired
 
@@ -36,7 +37,7 @@ def _published_notes(program, project_text):
 
 def admit_memory_recovery(cls, plan_path, root, configs, initial_memory, target, stop_policy):
     from core.verifier import _parse_agentic_verifier_report
-    from explore.e15_loop import _parse_handoff, _UNIFIED_CURRICULUM_TOKEN
+    from explore.practice_loop import _parse_handoff, _UNIFIED_CURRICULUM_TOKEN
 
     plan_path, root = Path(plan_path), Path(root)
     plan = read(plan_path)
@@ -68,7 +69,7 @@ def admit_memory_recovery(cls, plan_path, root, configs, initial_memory, target,
     manifest = read(root / 'manifest.json')
     protocol = manifest['protocol']
     require(manifest['target_direction_sha256'] == hashlib.sha256(target.encode()).hexdigest() and
-            manifest['initial_memory']['manifest'] == V._manifest(initial_memory), 'target/input changed')
+            manifest['initial_memory']['manifest'] == _manifest(initial_memory), 'target/input changed')
     require(protocol['curriculum_memory_access'] == plan['curriculum_memory_access'] == 'none' and
             protocol['stop_policy'] == stop_policy and protocol['official_evaluator_calls'] == 0 and
             not protocol['official_evaluator_feedback_enters_learning'], 'protocol changed')
@@ -81,9 +82,9 @@ def admit_memory_recovery(cls, plan_path, root, configs, initial_memory, target,
     state = read(cycle / 'state.json')
     memory = V._read_memory_tree(str(cycle / 'memory'))
     require(learning['target_cycle'] == 1 and learning['target_verifier_verdict'] == 'PASS' and
-            learning['memory_before'] == V._manifest(initial_memory), 'target learning changed')
+            learning['memory_before'] == _manifest(initial_memory), 'target learning changed')
     require(learning['memory_after'] == trigger['memory_before'] == state['memory_manifest'] ==
-            V._manifest(memory) == V._manifest(V._read_memory_tree(str(root / 'active_memory'))),
+            _manifest(memory) == _manifest(V._read_memory_tree(str(root / 'active_memory'))),
             'last committed memory changed')
     require(state['status'] == 'infra' and state['projects'] == state['learning_experiences'] == 1 and
             state['reason'] == 'ACTOR phase ended at emergency/infrastructure status infra' and
@@ -195,7 +196,7 @@ def wrap_memory_attempt(recovery, original):
         result, history = original(instruction, vm, limited, sink, **kwargs)
         used_iters += max(len(list(Path(sink.root).glob('iter_*/turn.txt'))),
                           int(getattr(result, 'turns', 0) or getattr(result, 'iters', 0)))
-        V._atomic_json(Path(meta['episode']) / 'memory_recovery_receipt.json', dict(
+        _atomic_json(Path(meta['episode']) / 'memory_recovery_receipt.json', dict(
             recovery_plan=str(recovery.plan_path), original_history_messages=len(meta['source_history']),
             prior_memory_iters=meta['prior_iters'], total_memory_iters=used_iters,
             prior_wall_secs=meta['prior_wall_secs'], remaining_wall_at_call=remaining_wall,

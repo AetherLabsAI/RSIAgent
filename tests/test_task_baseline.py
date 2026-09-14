@@ -40,8 +40,8 @@ def test_task_start_baseline_is_lossless_mechanical_manifest():
             assert cap == 0
             assert "/home/user/.memory" in code
             return SimpleNamespace(
-                stdout=("__FORGE_TASK_BASELINE_BEGIN__\n" + payload
-                        + "\n__FORGE_TASK_BASELINE_END__\n[exit 0]"),
+                stdout=("__RSIAGENT_TASK_BASELINE_BEGIN__\n" + payload
+                        + "\n__RSIAGENT_TASK_BASELINE_END__\n[exit 0]"),
                 exit_code=0,
                 infra_fail=False,
             )

@@ -54,7 +54,7 @@ def test_uv_predicate_continuity_revokes_trust_after_wrong():
 
 
 def test_agentic_verifier_never_launders_missing_report_into_acceptance():
-    c = Cfg(); c.agentic_verifier_config = "config/e15_verify.yaml"
+    c = Cfg(); c.agentic_verifier_config = "config/roles/practice_verifier.yaml"
     assert not uv_accept_ok(c, 2, commit=True, wrongs=0)
     assert not uv_accept_ok(c, 200, commit=True, wrongs=0)
 
@@ -367,13 +367,11 @@ def test_content_guard_same_agent_reinspection_keeps_items():
 
 
 def test_doubts_gate_downgrade_keeps_items():
-    """The loop-side downgrade (pass carrying doubts) must keep items — this is
-    the path that lost all 14 punch lists on t034."""
-    import core.loop as L
+    """Downgrading a pass carrying doubts must preserve its evidence items."""
     src = V._mk_findings("findings text", "an unresolved doubt", [
         {"req": "budget cap has a source", "status": "could-not-confirm",
          "evidence": "field blank in the source document"}])
-    rebuilt = L.carry_findings(
+    rebuilt = V.carry_findings(
         "[inspection passed but listed unresolved doubts — downgraded] "
         "Its doubts: " + src.doubts + "\nIts findings: " + str(src), src)
     assert rebuilt.items == src.items

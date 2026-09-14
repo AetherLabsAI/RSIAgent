@@ -1,6 +1,6 @@
 # task_012 leakage blocklist — tokens derived from the task's instruction, setup and
 # grader. REJECT-ONLY: this list never enters the agent; it exists so that
-# tests/test_no_leakage.py can prove the prompt surface (forge/synth.py) carries no
+# tests/test_no_leakage.py can prove the prompt surface (rsiagent/synth.py) carries no
 # task knowledge. Matched case-insensitively on word boundaries.
 #
 # course / candidate identity

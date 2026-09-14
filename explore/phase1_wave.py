@@ -16,7 +16,6 @@ import dataclasses
 from dataclasses import dataclass
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import shlex
@@ -25,26 +24,22 @@ from typing import Any, Callable
 
 from core.actor import PLAIN_JSON_TRANSPORT_NOTE
 from core.trace import ArtifactSink
-from explore import commit as memory_transport
 from explore.charter import (
     phase1_wave_curriculum_charter,
     self_evolving_actor_charter,
     self_evolving_actor_memory_distillation_msg,
     self_evolving_actor_memory_reconciliation_msg,
 )
-from explore.e15_loop import (
+from explore.practice_loop import (
     ACTOR_EXECUTION_EVIDENCE,
     ACTOR_HANDOFF,
     PROJECT_ROOT,
-    VERIFIER_REPORT,
-    E15BoundaryError,
-    E15Hooks,
-    E15InfrastructureError,
-    E15Result,
-    ParsedHandoff,
+    PracticeBoundaryError,
+    PracticeHooks,
+    PracticeInfrastructureError,
+    PracticeResult,
     _ACTOR_TOKEN,
     _actor_runtime_contract,
-    _atomic_install_memory,
     _atomic_json,
     _atomic_text,
     _audit_agent_artifacts,
@@ -157,7 +152,7 @@ def _remove_wave_publication(vm) -> None:
         f"test ! -e {quoted_root} && test ! -e {quoted_handoff}; "
         "echo PHASE1_WAVE_CLEAR_RC=$?", timeout=120) or ""
     if "PHASE1_WAVE_CLEAR_RC=0" not in out:
-        raise E15InfrastructureError("could not clear the Curriculum wave surface")
+        raise PracticeInfrastructureError("could not clear the Curriculum wave surface")
 
 
 def _validate_wave_fixtures(vm, decision: WaveDecision) -> bool:
@@ -188,7 +183,7 @@ or STALLED based on your evidence.
 
 
 def _author_wave(
-        *, hooks: E15Hooks, vm, cfg, target_direction: str,
+        *, hooks: PracticeHooks, vm, cfg, target_direction: str,
         previous_wave_outcomes: str, history: list[dict[str, Any]],
         sink_root: Path, target_query_conditioned: bool) \
         -> tuple[WaveDecision, list[dict[str, Any]]]:
@@ -232,7 +227,7 @@ def _author_wave(
         except Exception as exc:  # preserve the primary failure if capture fails
             report["draft_capture"] = {"ok": False, "error": str(exc)}
         _atomic_json(sink_root / "authoring_state.json", report)
-        raise E15InfrastructureError(reason)
+        raise PracticeInfrastructureError(reason)
 
     # A fresh wave starts empty. Retries within that wave clear only the stale
     # terminal envelope, so multi-segment construction does not erase itself.
@@ -274,7 +269,7 @@ def _author_wave(
         _atomic_json(sink_root / "authoring_state.json", report)
         try:
             _audit_agent_artifacts(hooks, str(sink_dir), target_direction)
-        except E15BoundaryError as exc:
+        except PracticeBoundaryError as exc:
             report.update(status="quarantined", reason=str(exc))
             try:
                 _atomic_json(sink_root / "authoring_state.json", report)
@@ -286,7 +281,7 @@ def _author_wave(
         if text and hooks.audit_text(
                 text, mode="practice",
                 authorized_instruction=target_direction):
-            raise E15BoundaryError(
+            raise PracticeBoundaryError(
                 "Curriculum wave handoff failed the target boundary")
         decision = parse_wave_handoff(text)
         if decision is not None and status == "done":
@@ -316,7 +311,7 @@ def _author_wave(
 
 
 def _capture_wave_fixtures(
-        *, hooks: E15Hooks, vm, decision: WaveDecision,
+        *, hooks: PracticeHooks, vm, decision: WaveDecision,
         assignments: tuple[tuple[int, WaveProject, Path], ...],
         target_direction: str) -> None:
     for project_index, project, episode_dir in assignments:
@@ -331,7 +326,7 @@ def _capture_wave_fixtures(
             # Host-owned copy is idempotent; no model action is replayed.
             out = vm.run_command(command, timeout=120) or ""
         if "PHASE1_WAVE_STAGE_RC=0" not in out:
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 f"could not stage Curriculum fixture {project.project_id}: {out[-1000:]}")
         fixture_dir = episode_dir / "fixtures"
         _capture_owned_tree(
@@ -357,7 +352,7 @@ def _branch_control_config(base_cfg):
 
 
 def _execute_branch(
-        *, vm_factory: Callable[[], tuple[Any, Any]], hooks: E15Hooks,
+        *, vm_factory: Callable[[], tuple[Any, Any]], hooks: PracticeHooks,
         project_index: int, project: WaveProject, episode_dir: Path,
         wave_memory_dir: Path, actor_cfg, verifier_control_cfg,
         target_direction: str) -> _BranchRuntime:
@@ -390,7 +385,7 @@ def _execute_branch(
                     hooks, vm, f"phase1-candidate-{project_index:03d}",
                     str(candidate_dir), target_direction)
                 break
-            except E15InfrastructureError:
+            except PracticeInfrastructureError:
                 actor_prompt = _continuation_after_transport(
                     "ACTOR", ACTOR_HANDOFF,
                     f"{PROJECT_ROOT} was absent, empty, or not replayable")
@@ -421,7 +416,7 @@ def _execute_branch(
         finally:
             session.close_executor()
         if verdict not in {"pass", "wrong"}:
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "Phase-1 Verifier Agent ended without PASS/FAIL: "
                 + str(findings))
         terminal_outcome = "PASS" if verdict == "pass" else "FAIL"
@@ -461,7 +456,7 @@ def _execute_branch_with_infra_retry(**kwargs) -> _BranchRuntime:
     episode = kwargs["episode_dir"]
     try:
         return _execute_branch(**kwargs)
-    except E15BoundaryError:
+    except PracticeBoundaryError:
         raise
     except Exception as exc:
         if (episode / "handoffs/verifier_001.md").exists():
@@ -510,7 +505,7 @@ def _memory_changes(before: dict[str, bytes], after: dict[str, bytes]) \
 
 
 def _commit_branch_memory(
-        *, branch: _BranchRuntime, hooks: E15Hooks, memory_cfg,
+        *, branch: _BranchRuntime, hooks: PracticeHooks, memory_cfg,
         canonical_memory_dir: Path, journal_dir: Path, corpus_path: str,
         target_direction: str) -> dict[str, Any]:
     """Resume the same branch Actor and serialize its update into one bank."""
@@ -538,7 +533,7 @@ def _commit_branch_memory(
         str(canonical_memory_dir.parent / "audit_rejects.jsonl"),
         authorized_instruction=target_direction, require_corpus=True)
     if accepted != candidate:
-        raise E15BoundaryError("terminal memory failed the target boundary")
+        raise PracticeBoundaryError("terminal memory failed the target boundary")
     hooks.journal_memory(
         str(journal_dir), branch.project_index, accepted,
         {"kind": "phase1-parallel-terminal-memory",
@@ -557,18 +552,21 @@ def evolve_parallel_phase1(
         *, root: str, target_direction: str, actor_cfg,
         curriculum_cfg, memory_cfg, verifier_control_cfg,
         vm_factory: Callable[[], tuple[Any, Any]], corpus_path: str,
-        hooks: E15Hooks | None = None,
+        hooks: PracticeHooks | None = None,
         event_sink: Callable[..., Any] | None = None,
         project_budget: int | None = None,
         checkpoint_projects: tuple[int, ...] = (),
         max_parallel: int = 4,
         target_query_conditioned: bool = False,
-        resume_completed_boundary: bool = False) -> E15Result:
+        resume_completed_boundary: bool = False,
+        park_verified_branches: bool = False) -> PracticeResult:
     """Run persistent-Curriculum parallel waves until Agent saturation.
 
     ``project_budget`` is an undisclosed emergency boundary checked only between
     complete Agent-authored waves. It never truncates a wave or defines semantic
     convergence. ``max_parallel`` is host scheduling capacity, not wave width.
+    ``park_verified_branches`` releases verified VMs while retaining exact
+    candidate archives and Actor contexts, then restores them for memory commits.
     """
 
     if project_budget is not None and (
@@ -581,7 +579,7 @@ def evolve_parallel_phase1(
            for value in checkpoint_projects):
         raise ValueError("checkpoint_projects must be nonnegative integers")
 
-    hooks = hooks or E15Hooks()
+    hooks = hooks or PracticeHooks()
     lineage = Path(root)
     memory_dir = lineage / "memory"
     journal_dir = lineage / "memory_journal"
@@ -621,7 +619,7 @@ def evolve_parallel_phase1(
         hooks.install_memory(
             str(destination), _read_memory_tree(str(memory_dir)))
 
-    def finish(status: str, reason: str, terminal_text: str = "") -> E15Result:
+    def finish(status: str, reason: str, terminal_text: str = "") -> PracticeResult:
         payload = {
             "schema_version": 2,
             "status": status,
@@ -641,7 +639,7 @@ def evolve_parallel_phase1(
                 _read_memory_tree(str(memory_dir))),
         }
         _atomic_json(state_path, payload)
-        return E15Result(
+        return PracticeResult(
             status=status, projects=project_index, root=str(lineage),
             memory_dir=str(memory_dir), reason=reason,
             terminal_text=terminal_text, last_project=project_index)
@@ -649,7 +647,7 @@ def evolve_parallel_phase1(
     active_branches: list[_BranchRuntime] = []
     try:
         if not target_direction.strip():
-            raise E15InfrastructureError("target direction is empty")
+            raise PracticeInfrastructureError("target direction is empty")
         hooks.validate_corpus(corpus_path)
         _audit_prompt(hooks, target_direction, target_direction)
         if not resume_completed_boundary:
@@ -732,10 +730,14 @@ def evolve_parallel_phase1(
                             project=futures[future],
                             error_type=type(exc).__name__, error=str(exc),
                             classification=("boundary" if isinstance(
-                                exc, E15BoundaryError) else "infra"))
+                                exc, PracticeBoundaryError) else "infra"))
                         continue
                     completed[branch.project_index] = branch
                     active_branches.append(branch)
+                    if park_verified_branches:
+                        branch.desktop.close()
+                        branch.desktop = None
+                        branch.vm = None
                     emit(
                         "PHASE1_BRANCH_VERIFIED", wave=wave_index,
                         project=branch.project_index,
@@ -747,12 +749,16 @@ def evolve_parallel_phase1(
             # wave merely because the failing future happened to return first.
             if branch_errors:
                 boundary = next((e for e in branch_errors
-                                 if isinstance(e, E15BoundaryError)), None)
+                                 if isinstance(e, PracticeBoundaryError)), None)
                 raise boundary or branch_errors[0]
 
             rendered_outcomes: list[str] = []
             for index, _project, _episode_dir in assignments:
                 branch = completed[index]
+                if park_verified_branches:
+                    branch.desktop, branch.vm = vm_factory()
+                    _replay(hooks, branch.vm,
+                            str(branch.episode_dir / "candidates/cycle_001"))
                 memory_record = _commit_branch_memory(
                     branch=branch, hooks=hooks, memory_cfg=memory_cfg,
                     canonical_memory_dir=memory_dir,
@@ -815,14 +821,15 @@ def evolve_parallel_phase1(
                 total_projects=project_index)
     except KeyboardInterrupt:
         return finish("infra", "KeyboardInterrupt: external interruption")
-    except E15BoundaryError as exc:
+    except PracticeBoundaryError as exc:
         return finish("quarantined", str(exc))
     except Exception as exc:  # noqa: BLE001 - persist inspectable infra state
         return finish("infra", f"{type(exc).__name__}: {exc}")
     finally:
         for branch in active_branches:
             try:
-                branch.desktop.close()
+                if branch.desktop is not None:
+                    branch.desktop.close()
             except Exception:
                 pass
 

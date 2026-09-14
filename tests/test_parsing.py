@@ -438,7 +438,7 @@ def test_unchanged_baseline_keeps_complete_live_program_output():
     from env.vm import Trace
 
     repo = Path(__file__).resolve().parents[1]
-    cfg = load(str(repo / "config/osworld_v2_0808_glm53_k3_agentic_baseline.yaml"))
+    cfg = load(str(repo / "config/osworld/baseline.yaml"))
     raw = "H" * 300_000 + "MIDDLE_EVIDENCE" + "T" * 300_000
     message = trace_message(
         Trace(stdout=raw, exit_code=0), head=cfg.trace_head, tail=cfg.trace_tail,
@@ -450,7 +450,7 @@ def test_unchanged_baseline_keeps_complete_live_program_output():
 
 def test_v17_infra_detection():
     from env.vm import Trace
-    ro = ("mktemp: failed to create file via template '/tmp/forge_XXXXXX.py': "
+    ro = ("mktemp: failed to create file via template '/tmp/rsiagent_XXXXXX.py': "
           "Read-only file system")
     assert "Read-only file system" in ro and "mktemp" in ro
     t = Trace(stdout="hello\n[exit 0]", exit_code=0)
@@ -464,8 +464,8 @@ def test_actor_loop_normalizes_unclassified_run_wrapper_failure():
     wrapper_failure = Trace(
         stdout=(
             "[exit 2]\n[stderr] mktemp: failed to create file via template "
-            "‘/tmp/forge_XXXXXX.sh’: Read-only file system\n"
-            "/bin/sh: cannot create /tmp/forge_run_abc123.log: "
+            "‘/tmp/rsiagent_XXXXXX.sh’: Read-only file system\n"
+            "/bin/sh: cannot create /tmp/rsiagent_run_abc123.log: "
             "Read-only file system"),
         exit_code=None,
         infra_fail=False,
@@ -476,7 +476,7 @@ def test_actor_loop_normalizes_unclassified_run_wrapper_failure():
     genuine_program_output = Trace(
         stdout=(
             "mktemp: failed to create file via template "
-            "‘/tmp/forge_XXXXXX.sh’: Read-only file system\n[exit 0]"),
+            "‘/tmp/rsiagent_XXXXXX.sh’: Read-only file system\n[exit 0]"),
         exit_code=0,
         infra_fail=False,
     )
@@ -1441,8 +1441,8 @@ def test_v27_stall_steer():
         return replies.pop(0) if replies else '{"verdict": "unverified", "findings": "x"}'
     class VM:
         def run_command(self, cmd, timeout=30, cap=4000):
-            if "__forge_canary__" in cmd:          # v32.2: channel alive, output real
-                return "__forge_canary__"
+            if "__rsiagent_canary__" in cmd:          # v32.2: channel alive, output real
+                return "__rsiagent_canary__"
             return ""                              # never any content
         def fetch_file(self, path, max_bytes=4_000_000): return b"", "n/a"
     oc = V.chat; V.chat = fc
@@ -1534,13 +1534,13 @@ def test_v26_autorender_pptx():
     seen = {}
     class VM:
         def run_command(self, command, timeout=30, cap=4000):
-            seen["cmd"] = command; return "/tmp/forge_render/SiriDemo.png\n"
+            seen["cmd"] = command; return "/tmp/rsiagent_render/SiriDemo.png\n"
         def fetch_file(self, path, max_bytes=4_000_000):
             seen["fetched"] = path; return b"RENDERED", ""
     d, e = fetch_look_image(VM(), "/home/user/Desktop/SiriDemo.pptx")
     assert d == b"RENDERED" and e == "", (d, e)
     assert "soffice" in seen["cmd"] and "convert-to png" in seen["cmd"], seen["cmd"]
-    assert seen["fetched"] == "/tmp/forge_render/SiriDemo.png", seen
+    assert seen["fetched"] == "/tmp/rsiagent_render/SiriDemo.png", seen
     print("v26 autorender document(pptx): PASS")
 
 
@@ -1550,7 +1550,7 @@ def test_v26_autorender_pdf():
     seen = {}
     class VM:
         def run_command(self, command, timeout=30, cap=4000):
-            seen["cmd"] = command; return "/tmp/forge_render/page-1.png"
+            seen["cmd"] = command; return "/tmp/rsiagent_render/page-1.png"
         def fetch_file(self, path, max_bytes=4_000_000):
             return b"PDFPAGE", ""
     d, e = fetch_look_image(VM(), "/docs/report.pdf")
@@ -1580,13 +1580,13 @@ def test_v29_screen_capture():
     seen = {}
     class VM:
         def run_command(self, command, timeout=30, cap=4000):
-            seen["cmd"] = command; return "/tmp/forge_render/screen.png"
+            seen["cmd"] = command; return "/tmp/rsiagent_render/screen.png"
         def fetch_file(self, path, max_bytes=4_000_000):
             seen["fetched"] = path; return b"SCREENPNG", ""
     d, e = fetch_look_image(VM(), "screen:")
     assert d == b"SCREENPNG" and e == "", (d, e)
     assert "DISPLAY=:0" in seen["cmd"] and "screen.png" in seen["cmd"], seen["cmd"]
-    assert seen["fetched"] == "/tmp/forge_render/screen.png", seen
+    assert seen["fetched"] == "/tmp/rsiagent_render/screen.png", seen
     # explicit display
     d2, _ = fetch_look_image(VM(), "screen:1")
     assert "DISPLAY=:1" in seen["cmd"], seen["cmd"]
@@ -1609,7 +1609,7 @@ def test_v29_screen_capture_rejects_display_shell_injection():
     class VM:
         def __init__(self): self.commands = []
         def run_command(self, command, timeout=30, cap=4000):
-            self.commands.append(command); return "/tmp/forge_render/screen.png"
+            self.commands.append(command); return "/tmp/rsiagent_render/screen.png"
         def fetch_file(self, path, max_bytes=4_000_000): return b"x", ""
     vm = VM()
     data, error = fetch_look_image(vm, "screen:0; touch /tmp/verifier-wrote")

@@ -174,7 +174,7 @@ def test_cumulative_nudges_never_terminate_productive_agent(monkeypatch, tmp_pat
 
 
 def test_json_format_retry_keeps_context_and_only_executes_parsed_action(monkeypatch, tmp_path):
-    monkeypatch.setenv("FORGE_JSON_ACTION_RETRY", "1")
+    monkeypatch.setenv("RSIAGENT_JSON_ACTION_RETRY", "1")
     requests = []
     replies = iter(("Tool choice is none, so I cannot act.",
                     '{"program":{"lang":"bash","code":"echo actual work"}}',

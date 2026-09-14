@@ -9,7 +9,8 @@ import time
 import tarfile
 from pathlib import Path
 
-from explore import e15_v12_loop as V
+from explore import target_learning as V
+from explore.practice_loop import _manifest, _atomic_json, _safe_memory_name
 from explore.phase2_recovery import read, require, sha
 
 
@@ -153,14 +154,14 @@ def run_practice_with_evidence(*, hooks, vm, lineage, episode_dir, project_index
                 'verifier_agent/inspection_*/segment_*/iter_*/turn.txt'))) - before_turns)
             V._verify_candidate(hooks, vm, str(candidate))
             V._verify_original_practice_fixtures(hooks, vm, fixture_dir)
-            require(V._manifest(before_memory) == V._manifest(
+            require(_manifest(before_memory) == _manifest(
                 V._read_memory_tree(str(memory_dir))), 'memory changed during unverified practice')
-            V._atomic_json(episode_dir / f'evidence_cycle_{publication:03d}.json', {
+            _atomic_json(episode_dir / f'evidence_cycle_{publication:03d}.json', {
                 'verdict': verdict, 'actor_iters_charged': actor_used,
                 'actor_wall_secs_charged': actor_wall, 'verifier_iters_charged': verifier_used,
                 'verifier_wall_secs_charged': verifier_wall,
-                'actor_memory_unchanged': V._manifest(before_memory) ==
-                    V._manifest(V._read_memory_tree(str(memory_dir)))})
+                'actor_memory_unchanged': _manifest(before_memory) ==
+                    _manifest(V._read_memory_tree(str(memory_dir)))})
             if verdict == 'unverified':
                 require(_parse_agentic_verifier_report(str(report), allow_unverified=True) == 'unverified',
                         'Verifier infrastructure absence is not an evidence request')
@@ -184,7 +185,7 @@ def run_practice_with_evidence(*, hooks, vm, lineage, episode_dir, project_index
 def admit_practice_recovery(cls, plan_path, root, configs, initial_memory, target, stop_policy):
     """Admit a preserved first-cycle evidence request after zero or one practices."""
     from core.verifier import _parse_agentic_verifier_report
-    from explore.e15_loop import _parse_handoff, _UNIFIED_CURRICULUM_TOKEN
+    from explore.practice_loop import _parse_handoff, _UNIFIED_CURRICULUM_TOKEN
     plan = read(plan_path)
     completed = plan.get('completed_projects', 1)
     require(type(completed) is int and completed in {0, 1}, 'unsupported practice boundary')
@@ -215,7 +216,7 @@ def admit_practice_recovery(cls, plan_path, root, configs, initial_memory, targe
     require(manifest.get('protocol', {}).get('curriculum_memory_access', 'read_only') ==
             plan.get('curriculum_memory_access', 'read_only'), 'Curriculum memory access changed')
     require(manifest['target_direction_sha256'] == hashlib.sha256(target.encode()).hexdigest() and
-            manifest['initial_memory']['manifest'] == V._manifest(initial_memory), 'target/initial memory changed')
+            manifest['initial_memory']['manifest'] == _manifest(initial_memory), 'target/initial memory changed')
     for role,cfg in configs.items():
         entry = manifest['configs'][role]
         require(sha(entry['path']) == entry['sha256'] and entry['effective'] ==
@@ -233,23 +234,23 @@ def admit_practice_recovery(cls, plan_path, root, configs, initial_memory, targe
             and all(p['project_index'] == i and p['terminal_outcome'] in ('PASS','FAIL')
                     for i, p in enumerate(records, 1)),
             'completed learning has no grounded verdict')
-    require(learning['memory_before'] == V._manifest(initial_memory) and
+    require(learning['memory_before'] == _manifest(initial_memory) and
             learning['memory_after'] == trigger['memory_before'] and
             (not records or trigger['memory_before'] == records[0]['memory_before']),
             'target/practice memory chain changed')
     # The failed evolve wrapper installed the last committed practice memory
     # into active_memory before raising. Recover its original trigger input from
     # the immutable target-learning journal, without changing either live tree.
-    require(project['memory_after'] == V._manifest(V._read_memory_tree(str(root/'active_memory'))),
+    require(project['memory_after'] == _manifest(V._read_memory_tree(str(root/'active_memory'))),
             'failed evolution did not preserve the last complete practice memory')
     with tarfile.open(root/'memory_journal/ep001.tgz') as archive:
         members = archive.getmembers()
-        require(all(m.isfile() and V._safe_memory_name(m.name) for m in members) and
+        require(all(m.isfile() and _safe_memory_name(m.name) for m in members) and
                 len({m.name for m in members}) == len(members), 'unsafe target-learning journal')
         trigger_memory = {m.name: archive.extractfile(m).read() for m in members}
-    require(V._manifest(trigger_memory) == trigger['memory_before'], 'target-learning journal changed')
+    require(_manifest(trigger_memory) == trigger['memory_before'], 'target-learning journal changed')
     require(project['memory_after'] == state['memory_manifest'] ==
-            V._manifest(V._read_memory_tree(str(cycle/'memory'))) and state['memory_tree_sha256'] ==
+            _manifest(V._read_memory_tree(str(cycle/'memory'))) and state['memory_tree_sha256'] ==
             V._memory_tree_sha256(V._read_memory_tree(str(cycle/'memory'))), 'committed memory changed')
     require(trigger['target'] == target and trigger['trigger_authority'] == 'phase2_outcome_protocol' and
             trigger['verifier_report'] == learning['verifier_report'] and

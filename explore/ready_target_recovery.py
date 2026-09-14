@@ -12,8 +12,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from explore.e15_loop import _manifest, _read_memory_tree
-from explore.e15_v12_loop import _memory_tree_sha256
+from explore.practice_loop import _manifest, _read_memory_tree
+from explore.target_learning import _memory_tree_sha256
 from explore.phase2_recovery import read, require, sha
 
 

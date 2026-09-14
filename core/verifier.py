@@ -26,7 +26,7 @@ from core.checks import _category, _nonscratch_mutations
 from llm.client import (LLMTransportError, chat, durable_images, parse_object,
                         with_durable_images)
 
-log = logging.getLogger("forge.verifier")
+log = logging.getLogger("rsiagent.verifier")
 
 # Mechanical liveness only. An Agent can investigate across many productive
 # segments; repeated segments without any Program/Look require runtime recovery,
@@ -151,7 +151,7 @@ def build_verifier_system(cfg=None) -> str:
     dest = (" When the task names a deliverable file, verify THAT file at THAT exact "
             "path — work found at other paths is staging, not delivery."
             if getattr(cfg, "verifier_destination_note", False) else "")
-    # E4-A1c (wenyi): the per-requirement judgement becomes DATA, not prose buried
+    # E4-A1c (): the per-requirement judgement becomes DATA, not prose buried
     # in `findings`. It carries what the harness could never read before — which
     # requirement is unsettled — so a bounce can name the one thing to fix and
     # progress between inspections is measurable. The scalar verdict remains the
@@ -310,7 +310,7 @@ return the one normal terminal verdict when your evidence is sufficient."""
 # v27: the JIT nudge that reminds the inspector it has EYES. It fires on a MODEL-INTRINSIC
 # STALL signal (its probes keep returning no readable content) — NOT on any reading of the
 # instruction. v25 used an instruction regex to detect "visual tasks", but that is a
-# harness-side task-CLASSIFIER (contrary to forge's no-routing thesis) and it over-fired on
+# harness-side task-CLASSIFIER (contrary to rsiagent's no-routing thesis) and it over-fired on
 # ~1/3 of non-pixel tasks that merely use spatial words (position/align/center/placed…).
 # Dropped entirely: WHETHER a requirement needs eyes is decided by the inspector via the
 # general principle in VERIFIER_SYSTEM ("structural values do not prove a rendered result");
@@ -518,12 +518,12 @@ def _appearance_attach(cfg, vm, instruction, context, history):
     if not reqs:
         return [], 0
     from core.render import harvest_paths, render_cmd
-    vm.run_command("mkdir -p /tmp/forge_insp", timeout=10)
+    vm.run_command("mkdir -p /tmp/rsiagent_insp", timeout=10)
     blocks, n = [], 0
     for i, p in enumerate(harvest_paths(instruction, context, history)):
         if n >= getattr(cfg, "appearance_attach_max", 2):
             break
-        out_png = f"/tmp/forge_insp/attach_{i}.png"
+        out_png = f"/tmp/rsiagent_insp/attach_{i}.png"
         cmd = render_cmd(p, out_png)
         if not cmd:
             continue
@@ -862,12 +862,9 @@ def verify_agentic(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
         AGENTIC_VERIFIER_ROUTE_NUDGE,
         AGENTIC_VERIFIER_ROUTE_PREMATURE_DONE,
         AGENTIC_VERIFIER_ROUTE_STRICT_NUDGE,
-        AGENTIC_VERIFIER_ROUTE_SYSTEM,
         AGENTIC_VERIFIER_ORIENTATION_NUDGE,
         AGENTIC_VERIFIER_ORIENTATION_PREMATURE_DONE,
-        AGENTIC_VERIFIER_ORIENTATION_SYSTEM,
-        AGENTIC_VERIFIER_STRICT_NUDGE, AGENTIC_VERIFIER_SYSTEM,
-        AgenticVerifierExecutor, AgenticVerifierInfrastructureError,
+        AGENTIC_VERIFIER_STRICT_NUDGE, AgenticVerifierExecutor, AgenticVerifierInfrastructureError,
         AgenticVerifierNoProgressError,
         agentic_verifier_system_for, agentic_verifier_user_message,
         validate_verifier_look_path)
@@ -1020,7 +1017,7 @@ def verify_agentic(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
     continuing = bool(current_history)
     temp_dir = None
     if sink is None:
-        temp_dir = tempfile.TemporaryDirectory(prefix="forge-agentic-verifier-")
+        temp_dir = tempfile.TemporaryDirectory(prefix="rsiagent-agentic-verifier-")
         verifier_root = temp_dir.name
     else:
         verifier_root = os.path.join(
@@ -1349,7 +1346,7 @@ def verify_independent(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
     it never reveals the actor's reasoning, so independence is preserved. The full
     inspector conversation is persisted via ``sink`` for autopsy.
 
-    ``session`` (E4-A1, wenyi's design): with cfg.verifier_continuity, the caller
+    ``session`` (E4-A1, 's design): with cfg.verifier_continuity, the caller
     passes ONE :class:`VerifierSession` per run. The verifier's exchanges and its
     prior probes/verdicts accumulate as its own history (like the Actor's), so a
     WRONG issued at inspection N is remembered at inspection N+1. Mechanical
@@ -1421,7 +1418,7 @@ def verify_independent(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
                    reasoning_max_tokens=getattr(cfg, "reasoning_max_tokens", 0))
         amsg = {"role": "assistant", "content": out or "(empty reply)"}
         if continuity and getattr(cfg, "reasoning_in_history", False):
-            from llm.client import pop_last_reasoning   # E4-A1 (wenyi): the
+            from llm.client import pop_last_reasoning   # E4-A1 (): the
             _rsn = pop_last_reasoning()                  # verifier's session runs
             if _rsn:                                     # under RIH like the actor's
                 amsg["reasoning"] = _rsn
@@ -1492,8 +1489,8 @@ def verify_independent(instruction: str, vm, cfg, sink=None, turn_no: int = 0,
             # exception, so the v32.1 marker never fired). Ask the machine to say a word; silence = outage, and nothing
             # in this round is evidence. The round is refunded (capped, so a
             # permanently dead channel cannot loop forever).
-            cv = vm.run_command("echo __forge_canary__", timeout=10)
-            if "__forge_canary__" not in (cv or ""):
+            cv = vm.run_command("echo __rsiagent_canary__", timeout=10)
+            if "__rsiagent_canary__" not in (cv or ""):
                 canary_refunds += 1
                 rounds_used -= 1
                 outs.append("[CHANNEL OUTAGE detected: even a trivial `echo` "

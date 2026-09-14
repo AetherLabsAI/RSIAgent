@@ -38,7 +38,7 @@ def apply_evaluator_correction(task, correction_id: str) -> dict:
     names = ("_heading_level", "_list_kind")
     for name in names:
         original = namespace[name]
-        if getattr(original, "_forge_correction", None) == correction_id:
+        if getattr(original, "_rsiagent_correction", None) == correction_id:
             continue
 
         def wrap(function):
@@ -47,7 +47,7 @@ def apply_evaluator_correction(task, correction_id: str) -> dict:
                 if paragraph.style is None:
                     paragraph = _ParagraphWithDefaultStyle(paragraph)
                 return function(paragraph)
-            corrected._forge_correction = correction_id
+            corrected._rsiagent_correction = correction_id
             return corrected
 
         namespace[name] = wrap(original)

@@ -11,7 +11,7 @@ from config.settings import Config
 from core.actor import PLAIN_JSON_TRANSPORT_NOTE
 from core.loop import LoopResult
 from explore import phase1_wave as wave
-from explore.e15_loop import E15BoundaryError, E15Hooks, E15InfrastructureError
+from explore.practice_loop import PracticeBoundaryError, PracticeHooks, PracticeInfrastructureError
 
 
 class LocalWaveVM:
@@ -61,7 +61,7 @@ def _hooks(surface, attempt):
         shutil.copytree(surface[0], Path(destination) / "evolution_wave")
         return {"ok": True}
 
-    return E15Hooks(
+    return PracticeHooks(
         run_attempt=attempt,
         read_guest_text=lambda _vm, path: (
             Path(path).read_text() if Path(path).is_file() else ""),
@@ -142,7 +142,7 @@ def test_wave_transcript_quarantine_updates_authoring_state(surface):
     hooks = _hooks(surface, attempt)
     hooks.audit_transcripts = lambda *_args, **_kwargs: [
         {"file": "trace.txt", "hits": [{"kind": "repo-url", "match": "blocked"}]}]
-    with pytest.raises(E15BoundaryError):
+    with pytest.raises(PracticeBoundaryError):
         wave._author_wave(
             hooks=hooks, vm=LocalWaveVM(), cfg=Config(),
             target_direction="public task instruction", previous_wave_outcomes="",
@@ -173,7 +173,7 @@ def test_repeated_narration_stops_as_infrastructure_and_archives_drafts(surface)
         sink.save_transcript("system", history)
         return LoopResult(status="stalled", turns=3, wall_secs=1), history
 
-    with pytest.raises(E15InfrastructureError, match="no Program or Look actions"):
+    with pytest.raises(PracticeInfrastructureError, match="no Program or Look actions"):
         _author(surface, attempt)
     assert len(calls) == 4
     state = json.loads((surface[2] / "authoring_state.json").read_text())
@@ -218,7 +218,7 @@ def test_segments_share_one_configured_emergency_ceiling(surface, ceiling):
                           iters=2 if len(calls) == 1 else 1,
                           wall_secs=3 if len(calls) == 1 else 2), []
 
-    with pytest.raises(E15InfrastructureError, match="cumulative transport ceiling"):
+    with pytest.raises(PracticeInfrastructureError, match="cumulative transport ceiling"):
         _author(surface, attempt, cfg=cfg)
     assert len(calls) == 2
     assert calls[1] == (cfg.max_iters - 2, cfg.wall_clock_secs - 3)
@@ -245,7 +245,7 @@ def test_capture_failure_does_not_hide_the_original_infrastructure_failure(surfa
     def broken_capture(*_args, **_kwargs):
         raise OSError("archive transport unavailable")
     hooks.capture_project = broken_capture
-    with pytest.raises(E15InfrastructureError, match="infrastructure status infra"):
+    with pytest.raises(PracticeInfrastructureError, match="infrastructure status infra"):
         wave._author_wave(
             hooks=hooks, vm=LocalWaveVM(), cfg=Config(),
             target_direction="public task instruction", previous_wave_outcomes="",

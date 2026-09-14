@@ -12,8 +12,8 @@ import json
 from typing import Any
 
 
-_BEGIN = "__FORGE_TASK_BASELINE_BEGIN__"
-_END = "__FORGE_TASK_BASELINE_END__"
+_BEGIN = "__RSIAGENT_TASK_BASELINE_BEGIN__"
+_END = "__RSIAGENT_TASK_BASELINE_END__"
 
 
 def _capture_program() -> str:
@@ -87,10 +87,10 @@ for root in roots:
             entries.append(record)
 
 entries.sort(key=lambda item: (item["path"], item["type"]))
-print("__FORGE_TASK_BASELINE_BEGIN__")
+print("__RSIAGENT_TASK_BASELINE_BEGIN__")
 print(json.dumps({"entries": entries}, ensure_ascii=False,
                  sort_keys=True, separators=(",", ":")))
-print("__FORGE_TASK_BASELINE_END__")
+print("__RSIAGENT_TASK_BASELINE_END__")
 '''
 
 

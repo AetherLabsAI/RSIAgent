@@ -38,7 +38,7 @@ def test_signal_terminated_transport_is_infra_not_empty_success(monkeypatch):
 
 
 def test_model_program_signal_exit_with_intact_wrapper_remains_program_result(monkeypatch):
-    envelope = 'FORGE_RUN_OUTPUT_BASE64:' + base64.b64encode(b'Killed\n').decode() + '\n[exit 137]'
+    envelope = 'RSIAGENT_RUN_OUTPUT_BASE64:' + base64.b64encode(b'Killed\n').decode() + '\n[exit 137]'
     vm = guest(monkeypatch, 0, envelope)
     trace = vm.run_script('bash', 'synthetic-program', timeout=60)
     assert trace.exit_code == 137 and not trace.infra_fail and not trace.timed_out

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare and verify the benchmark inputs pinned by a Forge baseline lock."""
+"""Prepare and verify the benchmark inputs pinned by a RSIAgent baseline lock."""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +16,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from tools.run_osworld_v2_baseline_shard import (  # noqa: E402
+from benchmarks.osworld.assets import (  # noqa: E402
     PreflightError,
     asset_content_identity,
     read_json,
@@ -25,7 +25,7 @@ from tools.run_osworld_v2_baseline_shard import (  # noqa: E402
 
 
 DEFAULT_LOCK = (
-    REPO / "config/osworld_v2_0808_glm53_k3_agentic_baseline.lock.json")
+    REPO / "config/osworld/baseline.lock.json")
 DEFAULT_OSWORLD_ROOT = REPO.parent / "OSWorld-V2"
 
 
@@ -118,7 +118,7 @@ def main() -> int:
     task_root = osworld_root / "evaluation_examples/task_class"
     asset_root = osworld_root / str(asset_meta["local_dir"])
     marker_name = str(asset_meta.get(
-        "release_marker", ".forge_osworld_release.json"))
+        "release_marker", ".rsiagent_osworld_release.json"))
     marker_path = asset_root / marker_name
 
     if not args.verify_only:

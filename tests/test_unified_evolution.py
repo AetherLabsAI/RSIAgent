@@ -11,7 +11,7 @@ from explore.charter import (
     unified_curriculum_pass_charter,
     unified_curriculum_route_charter,
 )
-from explore.e15_loop import CURRICULUM_HANDOFF, E15Hooks
+from explore.practice_loop import CURRICULUM_HANDOFF, PracticeHooks
 
 
 class _VM:
@@ -23,9 +23,9 @@ class _VM:
         if command.startswith("rm -f -- "):
             path = command.split(";", 1)[0][len("rm -f -- "):].strip("'\"")
             self.files.pop(path, None)
-            return "E15_REMOVE_RC=0"
-        if "E15_PROJECT_SHAPE_RC" in command:
-            return "E15_PROJECT_SHAPE_RC=0"
+            return "RSI_REMOVE_RC=0"
+        if "RSI_PROJECT_SHAPE_RC" in command:
+            return "RSI_PROJECT_SHAPE_RC=0"
         return ""
 
 
@@ -46,7 +46,7 @@ def _hooks(vm, decisions, seen_prompts, handoff_path=CURRICULUM_HANDOFF):
         passed_vm.memory = U._read_memory_tree(memory_dir)
         return True
 
-    return E15Hooks(
+    return PracticeHooks(
         run_attempt=run_attempt,
         sink_factory=lambda _path: object(),
         reset_vm=lambda _vm, _target: {"ok": True},

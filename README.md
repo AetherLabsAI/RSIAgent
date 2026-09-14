@@ -1,7 +1,5 @@
 # RSIAgent
 
-**Causality-driven RSI Agent v1**
-
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
 [Paper (Overleaf)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f) · [Method](#method) · [Results](#results) · [Installation](#installation) · [Citation](#citation)
@@ -80,153 +78,135 @@ the relevant weakness, verification can accept incomplete work, and memory can
 preserve an incorrect rule. The quality of exploration, verification, and memory
 consolidation therefore matters alongside the amount of practice.
 
-**This source release provides the OSWorld integration**, pinned to OSWorld-V2's
-August 8, 2026 release with Docker/QEMU guests. ALE and game-development runners
-are not included in this package.
+## Benchmarks
+
+| Integration | Pinned release | Public batch |
+| --- | --- | --- |
+| OSWorld-V2 | August 8, 2026 | 108 tasks, Docker/QEMU |
+| Agents' Last Exam (ALE) | `d10fb61a14f9719774c3520c5763068b28ef5546` | 67 Near-term tasks; 64 CPU tasks supported, 3 GPU tasks recorded as pending |
+
+Only the current runtime is included. Both integrations use the same Actor,
+Verifier, Curriculum, and memory protocol. Benchmark setup and grading remain
+outside the learning process.
 
 ## Installation
 
-Use Python 3.12 and a Linux host with Docker and accessible `/dev/kvm` for desktop
-runs. Model API access, the OSWorld guest image, and access to its gated task and
-asset datasets are required. This repository contains source, configuration, and
-tests; it does not contain credentials, benchmark assets, VM images, or research
-trajectories. Install and run it from a source checkout.
+Use Python 3.12 and a Linux host with Docker/KVM. VM images, benchmark assets,
+and credentials are obtained separately. Start with the repository and your own
+model API credential:
 
 ```bash
 git clone https://github.com/AetherLabsAI/RSIAgent.git
-git clone --branch v2026.08.08 https://github.com/xlang-ai/OSWorld-V2.git
+cd RSIAgent
+cp .env.example .env
 ```
 
-Follow the pinned OSWorld [installation instructions](https://github.com/xlang-ai/OSWorld-V2/tree/v2026.08.08)
-and [Docker provider setup](https://github.com/xlang-ai/OSWorld-V2/blob/v2026.08.08/docs/PROVIDER_SETUP.md#docker).
-With `uv` installed, create its environment and add RSIAgent's dependencies:
+Fill in `OPENROUTER_API_KEY` in `.env`. Paths default to this checkout and sibling
+benchmark directories. Export `RSIAGENT_ROOT`, `OSWORLD_ROOT`, or
+`RSIAGENT_ENV_FILE` only when using a different layout.
+
+### OSWorld
+
+Install the pinned [OSWorld release](https://github.com/xlang-ai/OSWorld-V2/tree/v2026.08.08)
+and follow its [Docker setup](https://github.com/xlang-ai/OSWorld-V2/blob/v2026.08.08/docs/PROVIDER_SETUP.md#docker).
+From the RSIAgent checkout:
 
 ```bash
-cd OSWorld-V2
+git clone --branch v2026.08.08 https://github.com/xlang-ai/OSWorld-V2.git ../OSWorld-V2
+cd ../OSWorld-V2
 uv sync --frozen
 uv pip install --python .venv/bin/python -r ../RSIAgent/requirements.txt
 source .venv/bin/activate
 cd ../RSIAgent
-
-export FORGE_ROOT="$PWD"
-export OSWORLD_ROOT="$(dirname "$FORGE_ROOT")/OSWorld-V2"
-cp .env.example .env
-```
-
-Fill in your own `OPENROUTER_API_KEY` in `.env`. `FORGE_*` names are retained for
-compatibility with existing configurations. Hugging Face access and any website
-credentials are configured separately using OSWorld's instructions.
-
-Prepare the pinned task release and the host-only rejection checks:
-
-```bash
-python tools/prepare_osworld_v2_release.py --osworld-root "$OSWORLD_ROOT"
+python tools/prepare_osworld_v2_release.py
 python tools/build_p2_corpus.py
 python tools/exam_fence.py build
 ```
 
-The two audit tools create reject-only data under the ignored `results/`
-directory. These files must stay on the host and must never enter an Agent prompt
-or learning memory.
+The audit files under `results/` are host-only rejection data. They must never
+enter an Agent prompt or memory.
 
-## Run a study
+### ALE
 
-Copy the supplied target-conditioned example and give the study a unique name:
-
-```bash
-mkdir -p results/protocols
-cp config/recursive_self_improvement_0808.example.json results/protocols/my_study.json
-```
-
-Edit `run_name`, the public task/query file, and both task lists before launching.
-The example uses T080, an eight-project Phase 1 boundary, up to four concurrent
-practice branches, and `curriculum_review` in Phase 2. In a target-conditioned
-study, development and evaluation name the same task, with separate environment resets.
-For unseen-task research, use `held_out_generalization` and disjoint task sets.
-
-Inspect the configuration, then run all three stages in sequence:
+The setup script clones the pinned upstream source and installs separate grader
+and worker environments. This separation prevents the two projects' Python
+packages from shadowing each other.
 
 ```bash
-python run_recursive_improvement.py \
-  --protocol results/protocols/my_study.json --phase phase1 --preflight
-
-bash scripts/run_rsi.sh results/protocols/my_study.json
+python3 scripts/setup_ale.py
+../agents-last-exam/.venv/bin/python run_ale.py prepare --os linux
+../agents-last-exam/.venv/bin/python run_ale.py prepare --os windows
 ```
 
-The wrapper uses a separate cache for each stage, streams output, and stops on a
-failed command. It does not restart failed attempts. To invoke a stage directly:
+Each preparation downloads only the selected OS image. Linux requires about
+167 GiB and Windows about 157 GiB, plus download and VM working space. Use
+`--cache /path/with/space` consistently for preparation, smoke tests, and runs.
+See [ALE operations](docs/ALE.md) for options and the upstream guide.
+
+## Run batches
+
+OSWorld runs the full pinned cohort without personnel assignments or shards:
 
 ```bash
-python run_recursive_improvement.py \
-  --protocol results/protocols/my_study.json --phase phase1 \
-  --execute RUN-RECURSIVE-IMPROVEMENT-PHASE1
+python scripts/run_osworld_batch.py --arm baseline --name baseline_run
+python scripts/run_osworld_batch.py --arm rsi --name rsi_run
 ```
 
-Use `phase2`/`PHASE2` and `phase3`/`PHASE3` for later stages. Results, protocol
-locks, and memory snapshots are saved under
-`results/recursive_improvement/<run_name>/`; detailed task runs have their own
-paths referenced by the phase results. See [operation and recovery](docs/OPERATIONS.md).
+Use `--arm both` for both arms, `--concurrency N` for independent task lineages,
+and `--dry-run` to inspect the plan. A task failure stops its remaining phases;
+other tasks continue. Logs and status are under `results/batches/<name>/`.
+Existing outputs are never overwritten.
 
-## Defaults and boundaries
-
-- The Actor Agent owns memory updates after valid Verifier Agent PASS and FAIL outcomes.
-  An infrastructure failure or `UNVERIFIED` outcome is not a learning verdict.
-- A Phase 1 wave is a memory barrier: sibling Actor Agents see the same frozen memory,
-  and all branch verdicts precede serial memory commits. The eight-project budget
-  is checked after complete waves and can be exceeded by the final wave.
-- Phase 2 defaults to `curriculum_review`: a target PASS is learned, then
-  the Curriculum Agent reviews whether to continue. `READY_FOR_TARGET` after practice
-  requests another target attempt. It does not bypass target verification.
-  `verifier_pass` is an explicit alternative stopping policy.
-- The Curriculum Agent's direct Phase 2 memory access defaults to `read_only`.
-  The direct Phase 2 runner also exposes `--phase2-curriculum-memory-access none`
-  for separate comparison lineages. The Actor Agent retains memory access in
-  these comparisons.
-- The default DRS lifecycle has no two-project cap. The paper's deep-only
-  ablations used at most two practice projects selected by the Curriculum Agent,
-  through separate experiment controls that are not a public runner API. Target
-  attempts and their memory updates do not count as practice projects.
-- Official evaluation is unavailable during learning. Phase 3 uses frozen memory
-  with no host writeback and no evaluation feedback into learning.
-
-The supplied role profiles use GLM-5.3 for the Actor Agent and Kimi K3 for the
-Curriculum Agent and Verifier Agent. The target Actor Agent watchdog is ten hours
-per Actor Agent run; this is not a ten-hour limit on the whole study.
-Configuration hashes and evaluator release
-bindings are checked before evaluation. Change profiles in a new, explicitly
-recorded protocol rather than editing a running study's locked configuration.
-
-## Tests
-
-The portable suite runs without model credentials, Docker, or a benchmark checkout:
+ALE's runner is already a batch entrypoint:
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-python tools/check_rsi_release.py
+../agents-last-exam/.venv/bin/python run_ale.py run \
+  --arm both --output results/ale/run_01
+../agents-last-exam/.venv/bin/python run_ale.py report \
+  --runs results/ale/run_01 --output results/ale/report_01
 ```
 
-Tests cover role boundaries, memory commits, stopping policies, recovery admission,
-transport handling, configuration locks, and sealed evaluation. They do not replace
-a live VM smoke test on a newly provisioned machine.
+ALE requires a successful smoke for each requested OS on the current source and
+runner image. Its report keeps missing and GPU-pending results explicit and
+rejects duplicate scored attempts.
 
-Two optional tests exercise the T102 correction against the frozen external
-evaluator. In a fully prepared OSWorld Python environment, run them with
-`RSI_TEST_OSWORLD_INTEGRATION=1 python -m pytest -q tests/test_evaluator_corrections.py`.
+For an individual OSWorld study, edit `config/osworld/rsi.example.json` and run
+`bash scripts/run_rsi.sh path/to/protocol.json`. The example preserves an
+eight-project Phase 1 boundary, four concurrent practice branches, and
+`curriculum_review` in Phase 2. Task-conditioned adaptation and held-out
+experiments are distinct study designs; see [operations](docs/OPERATIONS.md).
+
+## Validation
+
+Portable checks run without credentials, Docker, or benchmark installations:
+
+```bash
+uv venv .venv --python 3.12
+uv pip install --python .venv/bin/python -r requirements-dev.txt
+.venv/bin/python tools/check_rsi_release.py
+```
+
+Before a desktop run, execute the real VM smoke in the relevant environment:
+
+```bash
+python tools/smoke_osworld.py --output results/smoke/osworld
+../agents-last-exam/.venv/bin/python run_ale.py smoke --os linux
+../agents-last-exam/.venv/bin/python run_ale.py smoke --os windows
+```
+
+These checks exercise transport, immutable memory, candidate replay, Verifier
+isolation, and checkpoint rollback using synthetic files. They make no model or
+official grader calls. They validate runtime mechanics; reproducing benchmark
+scores requires complete experiments with the pinned configuration.
 
 ## Documentation
 
-- [Paper, figure provenance, and reporting scope](docs/PAPER.md)
-- [Architecture and learning protocol](docs/ARCHITECTURE.md)
-- [Operation, configuration, and recovery](docs/OPERATIONS.md)
-- [Release provenance](docs/RELEASE.md)
-- [Contributing](CONTRIBUTING.md)
-- [Dependency and benchmark attribution](THIRD_PARTY.md)
-
-A target-conditioned result does not establish generalization to an unseen task.
-Record the study design, exploration budget, all evaluation draws, and aggregation
-rule when reporting new experiments.
+- [Architecture](docs/ARCHITECTURE.md)
+- [OSWorld operations and recovery](docs/OPERATIONS.md)
+- [ALE setup, batches, and reports](docs/ALE.md)
+- [Release provenance and validation](docs/RELEASE.md)
+- [Paper and reporting scope](docs/PAPER.md)
+- [Contributing](CONTRIBUTING.md) · [Third-party attribution](THIRD_PARTY.md)
 
 ## Citation
 
@@ -246,5 +226,4 @@ If you use RSIAgent, please cite the manuscript:
 
 ## License status
 
-A distribution license has not yet been selected for this initial company-review
-package. Third-party dependency licenses are described in [THIRD_PARTY.md](THIRD_PARTY.md).
+A distribution license has not yet been selected for this repository. Third-party dependency licenses are described in [THIRD_PARTY.md](THIRD_PARTY.md).

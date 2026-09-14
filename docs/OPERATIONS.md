@@ -3,8 +3,8 @@
 ## Environment
 
 Run from the checkout with its dependencies and the pinned OSWorld environment
-installed. Export `FORGE_ROOT` to this checkout and `OSWORLD_ROOT` to the benchmark
-checkout. `FORGE_ENV_FILE` optionally names a private credentials file. These path
+installed. Export `RSIAGENT_ROOT` to this checkout and `OSWORLD_ROOT` to the benchmark
+checkout. `RSIAGENT_ENV_FILE` optionally names a private credentials file. These path
 variables are read before `.env` loading, so export them in the shell.
 
 Each machine needs Docker/KVM access, the official guest image, gated task/assets
@@ -19,7 +19,7 @@ dedicated asset snapshot and should only be used deliberately on an idle setup.
 
 ## Configuration
 
-Copy `config/recursive_self_improvement_0808.example.json` and choose a unique
+Copy `config/osworld/rsi.example.json` and choose a unique
 `run_name`. Change task IDs and the matching public Phase 1 query before starting.
 Use a new protocol lineage for a different policy, model, memory seed, or budget.
 

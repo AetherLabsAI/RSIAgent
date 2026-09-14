@@ -13,7 +13,7 @@ import secrets
 import time
 from dataclasses import dataclass
 
-log = logging.getLogger("forge.qemu_rollback")
+log = logging.getLogger("rsiagent.qemu_rollback")
 
 EFFECT_ISOLATED = "effect_isolated"
 ROLLBACK_MIRROR = "rollback_mirror"
@@ -35,7 +35,7 @@ def normalize_verifier_execution_mode(value: str | None) -> str:
 _HMP_SCRIPT = r'''set -eu
 command_text=$1
 timeout_secs=$2
-capture=$(mktemp /tmp/forge_hmp_XXXXXX)
+capture=$(mktemp /tmp/rsiagent_hmp_XXXXXX)
 reader_pid=
 cleanup() {
   if [ -n "$reader_pid" ]; then
@@ -53,7 +53,7 @@ deadline=$((SECONDS + timeout_secs))
 prompt_count() { grep -ao '(qemu)' "$capture" 2>/dev/null | wc -l; }
 while [ "$(prompt_count)" -lt 1 ]; do
   [ "$SECONDS" -lt "$deadline" ] || {
-    echo 'FORGE_HMP_INITIAL_PROMPT_TIMEOUT'
+    echo 'RSIAGENT_HMP_INITIAL_PROMPT_TIMEOUT'
     exit 124
   }
   sleep 0.1
@@ -61,7 +61,7 @@ done
 printf '%s\n' "$command_text" >&3
 while [ "$(prompt_count)" -lt 2 ]; do
   [ "$SECONDS" -lt "$deadline" ] || {
-    echo 'FORGE_HMP_COMMAND_TIMEOUT'
+    echo 'RSIAGENT_HMP_COMMAND_TIMEOUT'
     exit 124
   }
   sleep 0.1
@@ -78,7 +78,7 @@ _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 # that listener and the browser's actual debug listener without connecting to
 # either: even a GET /json/version can change a task's connection audit log.
 # The browser's port comes from its process arguments, not from task state.
-_BROWSER_LISTENER_PROBE = r'''/usr/bin/python3 - <<'FORGE_BROWSER_LISTENERS'
+_BROWSER_LISTENER_PROBE = r'''/usr/bin/python3 - <<'RSIAGENT_BROWSER_LISTENERS'
 from pathlib import Path
 import shlex
 
@@ -117,8 +117,8 @@ for path in proc.glob('[0-9]*/cmdline'):
             browser_ports.add(int(value))
 
 ready = 9222 in listening and bool(browser_ports & listening)
-print('FORGE_BROWSER_LISTENERS_READY' if ready else 'FORGE_BROWSER_LISTENERS_ABSENT')
-FORGE_BROWSER_LISTENERS'''
+print('RSIAGENT_BROWSER_LISTENERS_READY' if ready else 'RSIAGENT_BROWSER_LISTENERS_ABSENT')
+RSIAGENT_BROWSER_LISTENERS'''
 
 
 def _clean_hmp_output(raw: bytes | str) -> str:
@@ -140,7 +140,7 @@ class QemuRollbackTransaction:
     timeout: int = 300
 
     def __post_init__(self):
-        self.tag = "forge_verify_" + secrets.token_hex(12)
+        self.tag = "rsiagent_verify_" + secrets.token_hex(12)
         self.active = False
         self.restored = False
         # Restore listeners that were present before the checkpoint. Never
@@ -161,9 +161,9 @@ class QemuRollbackTransaction:
         if not 1 <= port <= 65535:
             return False
         report = self.vm.run_command(_BROWSER_LISTENER_PROBE, timeout=10, cap=1000).strip()
-        if report == "FORGE_BROWSER_LISTENERS_READY":
+        if report == "RSIAGENT_BROWSER_LISTENERS_READY":
             return True
-        if report == "FORGE_BROWSER_LISTENERS_ABSENT":
+        if report == "RSIAGENT_BROWSER_LISTENERS_ABSENT":
             return False
         raise QemuRollbackError(
             "passive browser listener probe did not complete: " + report[-400:])
@@ -228,7 +228,7 @@ class QemuRollbackTransaction:
             raise QemuRollbackError("unsafe QEMU monitor command")
         budget = max(1, int(timeout or self.timeout))
         result = self._container().exec_run(
-            ["bash", "-c", _HMP_SCRIPT, "forge-hmp", command, str(budget)])
+            ["bash", "-c", _HMP_SCRIPT, "rsiagent-hmp", command, str(budget)])
         exit_code = getattr(result, "exit_code", None)
         output = getattr(result, "output", None)
         if exit_code is None and isinstance(result, tuple):

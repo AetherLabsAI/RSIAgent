@@ -8,8 +8,8 @@ import re
 from env.vm import VM
 
 log = logging.getLogger(__name__)
-POLICY_PATH = '/run/systemd/system/osworld.service.d/50-forge-execute-oom.conf'
-READY = 'FORGE_CONTROLLER_OOM_POLICY_CONTINUE'
+POLICY_PATH = '/run/systemd/system/osworld.service.d/50-rsiagent-execute-oom.conf'
+READY = 'RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE'
 _ROOT_SCRIPT = r'''set -eu
 unit=osworld.service
 before_pid=$(systemctl show "$unit" --value -p MainPID)
@@ -19,8 +19,8 @@ case "$before_policy" in stop|kill|continue) ;; *) exit 125 ;; esac
 systemctl is-active --quiet "$unit"
 if [ "$before_policy" != continue ]; then
   install -d -m 0755 /run/systemd/system/osworld.service.d
-  destination=/run/systemd/system/osworld.service.d/50-forge-execute-oom.conf
-  temporary=$(mktemp /run/systemd/system/osworld.service.d/.forge-oom-XXXXXX)
+  destination=/run/systemd/system/osworld.service.d/50-rsiagent-execute-oom.conf
+  temporary=$(mktemp /run/systemd/system/osworld.service.d/.rsiagent-oom-XXXXXX)
   trap 'rm -f -- "$temporary"' EXIT
   printf '[Service]\nOOMPolicy=continue\n' > "$temporary"
   chmod 0644 "$temporary"
@@ -34,7 +34,7 @@ fi
 test "$(systemctl show "$unit" --value -p OOMPolicy)" = continue
 test "$(systemctl show "$unit" --value -p MainPID)" = "$before_pid"
 systemctl is-active --quiet "$unit"
-printf 'FORGE_CONTROLLER_OOM_POLICY_CONTINUE pid=%s previous=%s\n' "$before_pid" "$before_policy"
+printf 'RSIAGENT_CONTROLLER_OOM_POLICY_CONTINUE pid=%s previous=%s\n' "$before_pid" "$before_policy"
 '''
 
 
@@ -45,7 +45,7 @@ def ensure_controller_oom_policy(desktop):
     script = f'''set -eu
 printf %s {password!r} | base64 -d | sudo -S -k -p '' -- bash -ceu '
   printf %s "$1" | base64 -d | bash
-' forge-controller-oom {payload!r}
+' rsiagent-controller-oom {payload!r}
 sudo -K
 '''
     trace = VM(desktop).run_script('bash', script, timeout=60, cap=0)

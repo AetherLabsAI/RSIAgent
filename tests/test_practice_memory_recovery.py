@@ -7,9 +7,10 @@ import time
 
 import pytest
 
-from explore import e15_v12_loop as V
+from explore import target_learning as V
+from explore.practice_loop import _manifest
 from explore import practice_memory_recovery as R
-from explore.e15_loop import E15InfrastructureError
+from explore.practice_loop import PracticeInfrastructureError
 from explore.phase2_recovery import Phase2CurriculumRecovery
 
 
@@ -40,16 +41,16 @@ def boundary(tmp_path):
     report = 'Independent target inspection.\nVERDICT: PASS'
     diagnosis = 'Original Actor diagnosis.'
     learning = dict(target_cycle=1, target_verifier_verdict='PASS', memory_before={},
-                    memory_after=V._manifest(memory), verifier_report=report,
+                    memory_after=_manifest(memory), verifier_report=report,
                     actor_learning_diagnosis=diagnosis)
     save(target_root / 'terminal_learning/outcome.json', learning)
     save(cycle / 'trigger/outcome.json', dict(target='target', trigger_authority='phase2_outcome_protocol',
          verifier_outcome='PASS', verifier_report=report, actor_learning_diagnosis=diagnosis,
-         memory_before=V._manifest(memory)))
+         memory_before=_manifest(memory)))
     (cycle / 'trigger/outcome.md').write_text('original trigger')
     save(cycle / 'state.json', dict(status='infra', projects=1, learning_experiences=1,
          reason='ACTOR phase ended at emergency/infrastructure status infra',
-         memory_manifest=V._manifest(memory), memory_tree_sha256=V._memory_tree_sha256(memory)))
+         memory_manifest=_manifest(memory), memory_tree_sha256=V._memory_tree_sha256(memory)))
     save(root / 'manifest.json', dict(target_direction_sha256=hashlib.sha256(b'target').hexdigest(),
          initial_memory={'manifest': {}}, protocol=dict(curriculum_memory_access='none',
          stop_policy='curriculum_review', official_evaluator_calls=0,
@@ -140,7 +141,7 @@ def test_refuses_unsafe_recovery(boundary, fault):
     elif fault == 'hash':b.plan['input_sha256'] = {str(b.program): 'changed'}
     elif fault == 'event':save(b.root / 'events.jsonl', dict(event='EVOLUTION_PROJECT_CLOSED'))
     save(b.plan_path, b.plan)
-    with pytest.raises((E15InfrastructureError, KeyError)):
+    with pytest.raises((PracticeInfrastructureError, KeyError)):
         admit(b)
 
 
@@ -179,7 +180,7 @@ def test_resume_refuses_exhausted_budget_or_lost_history(boundary, fault):
     b = boundary;recovery = admit(b)
     if fault == 'exhausted':recovery.pending_memory_learning['start_monotonic'] = time.monotonic() - 90000
     history = [] if fault == 'dropped_context' else recovery.pending_practice['actor_history']
-    with pytest.raises(E15InfrastructureError):
+    with pytest.raises(PracticeInfrastructureError):
         recovery.wrap_attempt(lambda *a, **kw: pytest.fail('must not call Actor'))(
             'prompt', None, b.cfg, SimpleNamespace(root=str(b.ep / 'memory_distillation/segment_001')),
             initial_history=history)

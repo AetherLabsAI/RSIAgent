@@ -91,7 +91,7 @@ def classify_branch(episode):
 
 
 def validate_archive(directory):
-    from explore.provision7 import _inventory_from_tgz, read_manifest, read_symlinks
+    from explore.provisioning import _inventory_from_tgz, read_manifest, read_symlinks
     manifest, links = _inventory_from_tgz((directory / 'materials.tgz').read_bytes())
     require(bool(manifest) and manifest == read_manifest(str(directory)),
             f'Archive manifest mismatch: {directory}')
@@ -117,7 +117,7 @@ def build_plan(protocol_path):
     import run_phase1_exploration as runner
     runner._install_paths()
     from explore import phase1_wave as wave
-    from explore.e15_loop import _manifest, _read_memory_tree
+    from explore.practice_loop import _manifest, _read_memory_tree
 
     protocol = load(protocol_path)
     phase = protocol['phase1']
@@ -198,7 +198,7 @@ def build_plan(protocol_path):
 
 def restore_branch(context, assignment, factory, hooks):
     from explore import phase1_wave as wave
-    from explore.e15_loop import _read_memory_tree, _replay, _push_canonical_memory, _verify_candidate
+    from explore.practice_loop import _read_memory_tree, _replay, _push_canonical_memory, _verify_candidate
     from core.verifier import VerifierSession, verify_agentic, _agentic_substantive_checkpoint, _parse_agentic_verifier_report
     from core.trace import ArtifactSink
     index, project, episode, mode = assignment
@@ -261,9 +261,9 @@ def restore_branch(context, assignment, factory, hooks):
 
 def execute(context):
     from explore import phase1_wave as wave
-    from explore.e15_loop import E15Hooks, _manifest, _read_memory_tree
-    from explore.e15_v12_loop import _memory_tree_sha256
-    from qemu_provider import prepare_checkpointable_docker_provider
+    from explore.practice_loop import PracticeHooks, _manifest, _read_memory_tree
+    from explore.target_learning import _memory_tree_sha256
+    from benchmarks.osworld.provider import prepare_checkpointable_docker_provider
     from desktop_env.desktop_env import DesktopEnv
     from env.vm import VM
     root, runner = context.root, context.runner
@@ -274,7 +274,7 @@ def execute(context):
     for name in ('state.json', 'result.json', 'manifest.json'):
         shutil.copy2(root / name, audit / ('before_' + name))
     wave._atomic_json(audit / 'plan.json', context.plan)
-    hooks = E15Hooks()
+    hooks = PracticeHooks()
 
     def event(name, **payload):
         runner._append_event(root / 'events.jsonl', name, status='in_progress',
@@ -285,7 +285,7 @@ def execute(context):
     def factory():
         desktop = DesktopEnv(provider_name='docker', action_space='pyautogui', os_type='Ubuntu',
                              screen_size=(1920, 1080), headless=True, require_a11y_tree=False, volume_size=60,
-                             cache_dir=os.environ.get('FORGE_OSWORLD_CACHE_DIR', 'cache'))
+                             cache_dir=os.environ.get('RSIAGENT_OSWORLD_CACHE_DIR', 'cache'))
         try:
             desktop.reset(task_config=None)
             return desktop, VM(desktop)

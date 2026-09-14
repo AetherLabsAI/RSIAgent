@@ -8,7 +8,7 @@ practice handoffs observed during parallel RSI execution.
 - HTTP 200 responses containing provider errors follow the embedded status
   code's retry policy. Retrying an empty response preserves request options.
 - Simulated tool-call envelopes cannot authorize a trailing `done` action.
-  `FORGE_JSON_ACTION_RETRY=1` optionally requests JSON object output after an
+  `RSIAGENT_JSON_ACTION_RETRY=1` optionally requests JSON object output after an
   unparseable reply; the existing parser still decides whether an action exists.
 - Guest signal termination and staging failures remain transport evidence,
   including when wrapper diagnostics arrive after the output envelope.
@@ -23,8 +23,7 @@ practice handoffs observed during parallel RSI execution.
   archiving incomplete work. It preserves the existing project budget.
   Quarantined lineages are always rejected: saved transcripts may omit the
   rejected guest artifact, so a clean transcript audit cannot clear quarantine.
-- Release-specific task validation happens after loading the benchmark profile, so a legacy
-  exclusion does not reject a task enabled in the 0808 release.
+- Task validation uses the pinned August 8 release and its complete 108-task cohort.
 
 ## Docker provider behavior
 
@@ -32,14 +31,14 @@ The rollback-mirror adapter permits two concurrent cold boots per host UID and
 caches port discovery only for one allocation. Docker and allocation-lock
 operations have a 300-second timeout. Ready guests are not limited to two.
 
-Set `FORGE_VM_OWNER` to an experiment identifier to label launched containers.
+Set `RSIAGENT_VM_OWNER` to an experiment identifier to label launched containers.
 A unique launch token limits cleanup after a partially failed Docker launch to
 that launch. A readiness timeout can retry once, before task setup or agent
 execution, after ownership validation and archival of boot diagnostics.
-`FORGE_BOOT_DIAGNOSTICS_DIR` overrides the default `results/boot_failures`.
+`RSIAGENT_BOOT_DIAGNOSTICS_DIR` overrides the default `results/boot_failures`.
 Normal teardown removes the owned disposable container and anonymous volume.
 
-`FORGE_DNSMASQ_START_RETRY=1` opts into a wrapper that retries only the transient
+`RSIAGENT_DNSMASQ_START_RETRY=1` opts into a wrapper that retries only the transient
 inotify startup error; other dnsmasq failures propagate unchanged. It does not
 change unrelated container environment entries or mounts.
 
@@ -48,7 +47,7 @@ service drop-in so an OOM-killed child command does not stop the controller.
 The controller PID and active state are checked; RAM limits and OOM scores are
 not changed, and the service is not restarted.
 
-`FORGE_TRUSTED_VERIFIER_TRANSPORT=virtio` optionally provisions a host-only
+`RSIAGENT_TRUSTED_VERIFIER_TRANSPORT=virtio` optionally provisions a host-only
 Verifier setup channel before task setup disables desktop sudo. Its socket is
 container-loopback-only and unpublished; the guest device is root-only. It
 runs trusted isolation wrappers, which still drop privileges before agent code.
@@ -59,30 +58,3 @@ Run `python tools/check_rsi_release.py` in the existing OSWorld Python environme
 The portable suite uses synthetic fixtures and mocked provider interfaces; it
 does not call model APIs or start VMs. A live compatibility smoke test remains
 appropriate when deploying against a different Docker/OSWorld image version.
-
-## Companion patches
-
-Additional infra fixes are supplied as small unified diffs so this handoff
-contains only the changed lines from files that also hold legacy task fixtures:
-
-- `patches/rsi-practice-verifier-contract.patch`: disable target-only UNVERIFIED
-  and evolution routes in the practice adapter, whose caller consumes PASS/FAIL.
-- `patches/rsi-phase-budget.patch`: retain cumulative work/action ceilings across
-  same-context segments and preserve incomplete Curriculum fixtures. Includes
-  regression tests and updates the legacy fake-call signatures.
-
-These companion patches are preserved for review and are **not applied** to this
-release. They target the historical source tree and should not be applied directly
-to the company release:
-
-- The practice-contract diff passes `git apply --check`, but the company
-  adapter already routes UNVERIFIED evidence through
-  `explore/practice_evidence_recovery.py` before the patched legacy branch.
-  Its UNVERIFIED override is redundant there, and the evolution flag already
-  defaults to false. The separate legacy contract change remains unapplied.
-- The company handoff runner already accumulates budgets for bounded transport
-  and required publications; Phase 1 wave authoring also preserves unfinished
-  drafts. The budget patch would extend ceilings to other learning phases and
-  change fixture retention. Those remaining behavior changes need a separate
-  protocol review and are not part of this infrastructure integration. The raw
-  diff also fails `git apply --check` against the company release.

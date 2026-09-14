@@ -6,7 +6,7 @@ import pytest
 
 from config.settings import Config
 import run_recursive_improvement as protocol
-import run_self_evolving as runner
+import run_phase2 as runner
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -14,8 +14,10 @@ REPO = Path(__file__).resolve().parents[1]
 
 def make_spec(tmp_path, monkeypatch, policy="verifier_pass"):
     monkeypatch.setattr(protocol, "RESULTS_ROOT", tmp_path / "results")
-    value = json.loads((REPO / "config/recursive_self_improvement.example.json").read_text())
+    value = json.loads((REPO / "config/osworld/rsi.example.json").read_text())
     value["run_name"] = "policy_test"
+    value["study_design"] = "held_out_generalization"
+    value["phase1"]["distribution_file"] = "config/osworld_v2_training_distribution.md"
     value["phase2"].update(development_tasks=["task_095"], stop_policy=policy)
     value["phase3"]["held_out_tasks"] = ["task_099"]
     path = tmp_path / "protocol.json"
@@ -134,8 +136,7 @@ def test_direct_runner_resolves_policy_before_loading_configs(
     class ConfigsReached(Exception):
         pass
 
-    def load_configs(args, *, phase2_training):
-        assert phase2_training is True
+    def load_configs(args):
         assert args.phase2_stop_policy == policy
         metadata = runner.phase2_protocol_metadata(args.phase2_stop_policy)
         assert metadata["curriculum_after_pass"] is (policy == "curriculum_review")
@@ -144,7 +145,7 @@ def test_direct_runner_resolves_policy_before_loading_configs(
     monkeypatch.setattr(runner, "_install_paths", lambda: None)
     monkeypatch.setattr(runner, "RECURSIVE_RESULTS_ROOT", tmp_path / "results")
     monkeypatch.setattr(runner, "_load_configs", load_configs)
-    argv = ["task_080", "--phase2-training", "--protocol-run", "policy_test",
+    argv = ["task_080",  "--protocol-run", "policy_test",
             "--initial-memory", str(tmp_path), "--preflight"]
     if declared_policy is not None:
         argv.extend(["--phase2-stop-policy", declared_policy])
@@ -152,12 +153,6 @@ def test_direct_runner_resolves_policy_before_loading_configs(
         runner.main(argv)
 
 
-@pytest.mark.parametrize("policy", ["verifier_pass", "curriculum_review"])
-def test_stop_policy_option_still_requires_phase2_training(monkeypatch, policy):
-    monkeypatch.setattr(runner, "_install_paths", lambda: None)
-    monkeypatch.setattr(runner, "_load_configs", lambda *_a, **_kw: pytest.fail("must not load"))
-    with pytest.raises(RuntimeError, match="requires --phase2-training"):
-        runner.main(["task_080", "--preflight", "--phase2-stop-policy", policy])
 
 
 @pytest.mark.parametrize("invalid", ["converged", "", None, True, []])
@@ -188,10 +183,9 @@ def test_manifest_records_actual_pass_transition(tmp_path, policy, review):
 
 
 @pytest.mark.parametrize("example", [
-    "recursive_self_improvement.example.json",
-    "recursive_self_improvement_0808.example.json",
+    "osworld/rsi.example.json",
 ])
-def test_team_examples_declare_curriculum_review(example):
+def test_public_examples_declare_curriculum_review(example):
     value = json.loads((REPO / "config" / example).read_text())
     assert value["phase2"]["stop_policy"] == "curriculum_review"
 

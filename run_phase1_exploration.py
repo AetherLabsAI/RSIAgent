@@ -31,22 +31,22 @@ from typing import Any
 
 from config.runtime_paths import (
     normalize_verifier_config_paths,
-    resolve_forge_path,
-    resolve_forge_root,
+    resolve_path,
+    resolve_root,
     resolve_osworld_root,
 )
 
 
-FORGE_ROOT = resolve_forge_root()
-OSWORLD_ROOT = resolve_osworld_root(forge_root=FORGE_ROOT)
-RESULTS_ROOT = FORGE_ROOT / "results" / "recursive_improvement"
-DEFAULT_ACTOR_CONFIG = FORGE_ROOT / "config/glm53_practice_actor.yaml"
-DEFAULT_VERIFIER_CONFIG = FORGE_ROOT / "config/e15_verify.yaml"
+RSIAGENT_ROOT = resolve_root()
+OSWORLD_ROOT = resolve_osworld_root(repo_root=RSIAGENT_ROOT)
+RESULTS_ROOT = RSIAGENT_ROOT / "results" / "recursive_improvement"
+DEFAULT_ACTOR_CONFIG = RSIAGENT_ROOT / "config/roles/actor.yaml"
+DEFAULT_VERIFIER_CONFIG = RSIAGENT_ROOT / "config/roles/practice_verifier.yaml"
 DEFAULT_VERIFIER_CONTROL_CONFIG = (
-    FORGE_ROOT / "config/osworld_v2_glm53_k3_recursive_practice.yaml")
-DEFAULT_CURRICULUM_CONFIG = FORGE_ROOT / "config/k3_curriculum.yaml"
-DEFAULT_MEMORY_CONFIG = FORGE_ROOT / "config/glm53_practice_actor.yaml"
-DEFAULT_CORPUS = FORGE_ROOT / "results/explore/corpus_shingles.json"
+    RSIAGENT_ROOT / "config/roles/target.yaml")
+DEFAULT_CURRICULUM_CONFIG = RSIAGENT_ROOT / "config/roles/curriculum.yaml"
+DEFAULT_MEMORY_CONFIG = RSIAGENT_ROOT / "config/roles/actor.yaml"
+DEFAULT_CORPUS = RSIAGENT_ROOT / "results/explore/corpus_shingles.json"
 EXECUTE_ACK = "RUN-PHASE1-DISTRIBUTION-EXPLORATION"
 _SAFE_NAME = re.compile(r"[A-Za-z0-9_.-]+\Z")
 
@@ -110,7 +110,7 @@ def _safe_phase_root(name: str) -> Path:
 
 def _resolve_input_path(value: str, *, directory: bool = False) -> Path:
     raw = Path(value).expanduser()
-    candidate = raw if raw.is_absolute() else FORGE_ROOT / raw
+    candidate = raw if raw.is_absolute() else RSIAGENT_ROOT / raw
     if candidate.is_symlink():
         raise RuntimeError(f"input path may not be a symlink: {candidate}")
     path = candidate.resolve(strict=True)
@@ -129,7 +129,7 @@ def _install_paths() -> None:
         dotenv.load_dotenv(OSWORLD_ROOT / ".env", override=False)
     except ImportError:
         pass
-    for path in (str(OSWORLD_ROOT), str(FORGE_ROOT)):
+    for path in (str(OSWORLD_ROOT), str(RSIAGENT_ROOT)):
         if path not in sys.path:
             sys.path.insert(0, path)
     os.chdir(OSWORLD_ROOT)
@@ -139,19 +139,19 @@ def _load_configs(args) -> tuple[dict[str, Any], dict[str, Path]]:
     from config.settings import load
 
     paths = {
-        "actor": resolve_forge_path(args.actor_config, forge_root=FORGE_ROOT),
-        "verifier": resolve_forge_path(
-            args.verifier_config, forge_root=FORGE_ROOT),
-        "verifier_control": resolve_forge_path(
-            args.verifier_control_config, forge_root=FORGE_ROOT),
-        "curriculum": resolve_forge_path(
-            args.curriculum_config, forge_root=FORGE_ROOT),
-        "memory_actor": resolve_forge_path(
-            args.memory_config, forge_root=FORGE_ROOT),
+        "actor": resolve_path(args.actor_config, repo_root=RSIAGENT_ROOT),
+        "verifier": resolve_path(
+            args.verifier_config, repo_root=RSIAGENT_ROOT),
+        "verifier_control": resolve_path(
+            args.verifier_control_config, repo_root=RSIAGENT_ROOT),
+        "curriculum": resolve_path(
+            args.curriculum_config, repo_root=RSIAGENT_ROOT),
+        "memory_actor": resolve_path(
+            args.memory_config, repo_root=RSIAGENT_ROOT),
     }
     configs = {role: load(str(path)) for role, path in paths.items()}
     for cfg in configs.values():
-        normalize_verifier_config_paths(cfg, FORGE_ROOT)
+        normalize_verifier_config_paths(cfg, RSIAGENT_ROOT)
     for role in ("actor", "verifier", "curriculum", "memory_actor"):
         cfg = configs[role]
         if (not cfg.agent_decided_stop or not cfg.practice_mode
@@ -235,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     root = _safe_phase_root(args.run_name)
     configs, config_paths = _load_configs(args)
     from env.qemu_rollback import normalize_verifier_execution_mode
-    from qemu_provider import prepare_checkpointable_docker_provider
+    from benchmarks.osworld.provider import prepare_checkpointable_docker_provider
     verifier_execution_mode = normalize_verifier_execution_mode(
         configs["verifier_control"].verifier_execution_mode)
     prepare_checkpointable_docker_provider(verifier_execution_mode)
@@ -315,14 +315,14 @@ def main(argv: list[str] | None = None) -> int:
 
     from desktop_env.desktop_env import DesktopEnv
     from env.vm import VM
-    from explore.e15_loop import (
-        E15Hooks,
+    from explore.practice_loop import (
+        PracticeHooks,
         _atomic_install_memory,
         _manifest,
         _read_memory_tree,
-        e15_evolve,
+        evolve_practice,
     )
-    from explore.e15_v12_loop import _memory_tree_sha256
+    from explore.target_learning import _memory_tree_sha256
 
     def vm_factory():
         desktop = DesktopEnv(
@@ -345,7 +345,7 @@ def main(argv: list[str] | None = None) -> int:
             curriculum_cfg=configs["curriculum"],
             memory_cfg=configs["memory_actor"],
             verifier_control_cfg=configs["verifier_control"],
-            vm_factory=vm_factory, corpus_path=str(corpus), hooks=E15Hooks(),
+            vm_factory=vm_factory, corpus_path=str(corpus), hooks=PracticeHooks(),
             event_sink=lambda event_type, **kwargs: _append_event(
                 events_path, event_type, **kwargs),
             project_budget=args.project_budget,
@@ -356,10 +356,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         desktop, vm = vm_factory()
         try:
-            result = e15_evolve(
+            result = evolve_practice(
                 vm, str(root), distribution,
                 configs["actor"], configs["verifier"], configs["curriculum"],
-                configs["memory_actor"], corpus_path=str(corpus), hooks=E15Hooks(),
+                configs["memory_actor"], corpus_path=str(corpus), hooks=PracticeHooks(),
                 event_sink=lambda event_type, **kwargs: _append_event(
                     events_path, event_type, **kwargs),
                 project_budget=args.project_budget,

@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "benchmark": "OSWorld-v2",
+  "benchmark_release": "osworld-v2-2026.08.08",
+  "release_manifest": {
+    "path": "benchmark_releases/osworld-v2-2026.08.08.json",
+    "sha256": "afe4f61ba6f4e4dce6c9f5815578e41e084fb6b61ee96b7118d9055e5d339aab"
+  },
+  "experiment": "baseline",
+  "tag": "baseline",
+  "seed_label": 5400,
+  "task_count": 108,
+  "task_ids_sha256": "18bb0cf175d200ef5d306807620a3a1bc01cd1fd85a420b413c663b3e0cb5d7f",
+  "task_files": {
+    "repository": "xlangai/osworld_v2_tasks",
+    "repo_type": "dataset",
+    "tag": "v2026.08.08",
+    "commit": "3736efa55d9d5dc78f57e873ef78886663e41200",
+    "manifest_path": "manifests/task_hashes.json",
+    "manifest_sha256": "42f8f6f8939b8712997d5891456a575f8a2a5f53465e9e3e6747af5d6efd0915",
+    "content_tree_sha256": "1b923d2b8ec94c15cf4056ff9242985dbe922614fd1f7a84fd20407b460ad18d",
+    "total_bytes": 2668122
+  },
+  "osworld_code": {
+    "repository": "xlang-ai/OSWorld-V2",
+    "tag": "v2026.08.08",
+    "commit": "d578d2d4e0dc82b43e270fdaa7fa89d9708cd154"
+  },
+  "task_assets": {
+    "repository": "xlangai/osworld_v2_assets_gated",
+    "repo_type": "dataset",
+    "tag": "v2026.08.08",
+    "commit": "acad110ef3136405f95434b54862bf9066176c2a",
+    "local_dir": "cache/osworld_v2_assets_0808",
+    "release_marker": ".rsiagent_osworld_release.json"
+  },
+  "website": {
+    "repository": "Task-Web/OSWorld-web",
+    "tag": "v2026.08.08",
+    "commit": "90ec2218f7747b15fe5117cdbe59b8978446ab9c",
+    "host_suffix": "site.hku.icu"
+  },
+  "provider_image": {
+    "artifact_repository": "xlangai/v2-image",
+    "artifact_tag": "v2026.06.24",
+    "artifact_path": "osworld-v2-ubuntu-x86.qcow2.zip",
+    "artifact_size": 14189763267,
+    "artifact_sha256": "eb737ae70b49849e24af407de6a518439a23de05a8497096a948334ce0a909aa"
+  },
+  "actor_agent": {
+    "model": "z-ai/glm-5.3",
+    "config": "config/osworld/baseline.yaml",
+    "sha256": "7e36a60000ee475cd1ea201c8fb6a11489b283f1f172563d44d5c5592d69e85b",
+    "provider_preference": [
+      "Z.AI"
+    ],
+    "provider_fallback": "infrastructure_only_and_recorded"
+  },
+  "verifier_agent": {
+    "model": "moonshotai/kimi-k3",
+    "config": "config/roles/verifier.yaml",
+    "sha256": "78808943b1eef820f1fefb2af9c0c9c5af303eea93e0bc71de6f04a6548aaef7",
+    "verdicts": [
+      "PASS",
+      "FAIL",
+      "UNVERIFIED"
+    ],
+    "persistent_within_task": true,
+    "candidate_blind_orientation": false,
+    "execution_mode": "rollback_mirror",
+    "candidate_protection": "qemu_checkpoint_restore",
+    "actor_private_artifacts_hidden": true,
+    "provider_routing": "openrouter_auto_recorded"
+  },
+  "escalation": {
+    "trigger": "stalled_with_remaining_budget",
+    "max_switches": 1,
+    "actor_model": "moonshotai/kimi-k3",
+    "actor_vision": "native_single_read",
+    "actor_provider_routing": "openrouter_auto_recorded",
+    "verifier_model": "z-ai/glm-5.3",
+    "verifier_config": "config/roles/verifier_escalation.yaml",
+    "verifier_config_sha256": "64e646fc37d8d0a60293054cf5fc4706b6df5067c83da50bb5d5ce6f483df295",
+    "verifier_vision": "one_delegated_kimi_k3_read",
+    "fresh_verifier_context_on_model_switch": true,
+    "persistent_within_escalated_segment": true,
+    "fully_asymmetric": true
+  },
+  "visual_eye": {
+    "model": "moonshotai/kimi-k3",
+    "readers_per_look": 1,
+    "ensemble_judge": false,
+    "provider_routing": "openrouter_auto_recorded"
+  },
+  "memory": {
+    "enabled": false,
+    "directory": "",
+    "host_writeback": false
+  },
+  "evaluator": {
+    "provider": "openai_compatible",
+    "model": "openai/gpt-5.4",
+    "base_url": "https://openrouter.ai/api/v1",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "website_host_suffix": "site.hku.icu",
+    "retry_attempts": 5,
+    "retry_delay_seconds": 15,
+    "visibility": "sealed_after_actor_verifier_loop"
+  },
+  "user_simulator": {
+    "provider": "openai_compatible",
+    "model": "openai/gpt-4o",
+    "base_url": "https://openrouter.ai/api/v1",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "max_tokens": 256,
+    "failure_policy": "abort_infra_invalid_before_official_evaluation"
+  }
+}

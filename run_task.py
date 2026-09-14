@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
-"""Run the forge agent on one OSWorld v2 task.
+"""Run one OSWorld task with sealed post-Agent evaluation.
 
-SEALED GRADER (Constraint #0): this file is the ONLY place that touches the benchmark
-(task_loader / desktop_env / the grader). The agent (core.loop) receives exactly two
-things — the instruction string and a VM handle — and the grader boundary is entered
-only AFTER the loop returns. task_config (setup steps, asset names) is never
-serialized into prompts, logs or results. A successful grade is accepted once;
-evaluator
-transport failures retry against the same completed VM and never re-enter an Agent.
-
-  python run_task.py task_012 --seed 0 --config m3.yaml
-  python run_task.py task_012 --smoke          # infra check only, no agent
+The Agent receives the public instruction and a VM handle. Official evaluation
+runs only after the action/verification loop returns. Evaluator transport retries
+retain the completed VM and never re-enter an Agent.
 """
 import argparse
 from dataclasses import asdict
@@ -25,8 +18,8 @@ import time
 
 from config.runtime_paths import (
     normalize_verifier_config_paths,
-    resolve_forge_path,
-    resolve_forge_root,
+    resolve_path,
+    resolve_root,
     resolve_osworld_root,
 )
 from config.benchmark_runtime import configure_associated_benchmark_lock
@@ -35,22 +28,8 @@ signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))   # kill -> finally -> d
 #                                                           (SIGKILLed runs still leak;
 #                                                            prefer TERM when stopping)
 
-FORGE_ROOT = resolve_forge_root()
-OSWORLD_ROOT = resolve_osworld_root(forge_root=FORGE_ROOT)
-if not OSWORLD_ROOT.is_dir():
-    raise RuntimeError(
-        f"OSWorld-V2 checkout does not exist: {OSWORLD_ROOT}. "
-        "Place it beside Forge or set OSWORLD_ROOT explicitly.")
-
-# Keep the historical string names for downstream os.path calls while resolving
-# their values from this checkout instead of a person's home directory.
-V2 = str(OSWORLD_ROOT)
-FORGE = str(FORGE_ROOT)
-for _p in (V2, FORGE):        # FORGE inserted LAST -> wins name resolution: our generic
-    if _p not in sys.path:    # package names (core/env/llm/config) must never be
-        sys.path.insert(0, _p)  # shadowed by anything top-level in the benchmark clone
-os.chdir(OSWORLD_ROOT)   # v2 loads task files + ./docker_vm_data relative to CWD
-
+RSIAGENT_ROOT = resolve_root()
+OSWORLD_ROOT = resolve_osworld_root(repo_root=RSIAGENT_ROOT)
 from config.settings import load as load_config          # noqa: E402
 from core.loop import run_with_resume                    # noqa: E402
 from core.actor import build_system                  # noqa: E402
@@ -61,15 +40,15 @@ from env.vm import VM                               # noqa: E402
 from llm.client import provider_counts, reset_provider_counts  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s %(name)s] %(message)s")
-log = logging.getLogger("forge.run")
+log = logging.getLogger("rsiagent.run")
 
 
 def smoke(vm) -> bool:
     """Infra check: command roundtrip, program roundtrip, timeout-recovery path."""
     ok = True
-    out = vm.run_command("echo forge_smoke_ok && whoami")
+    out = vm.run_command("echo rsiagent_smoke_ok && whoami")
     print("run_command:", out)
-    ok &= "forge_smoke_ok" in out
+    ok &= "rsiagent_smoke_ok" in out
     tr = vm.run_script("python", "print('py_roundtrip_ok')")
     print("run_script:", tr.stdout.strip()[:200], "| exit", tr.exit_code)
     ok &= tr.exit_code == 0 and "py_roundtrip_ok" in tr.stdout
@@ -85,7 +64,7 @@ def main():
     ap.add_argument("task_id", help="e.g. task_012")
     ap.add_argument("--seed", type=int, default=0,
                     help="run label only (independent draw; the API has no seed)")
-    ap.add_argument("--config", default=None, help="YAML overlay (m3.yaml / sota.yaml)")
+    ap.add_argument("--config", default="config/osworld/baseline.yaml", help="Actor configuration")
     ap.add_argument("--tag", default=None,
                     help="output-dir suffix -> results/<task>/seed<S>_<tag> (for A/B arms)")
     ap.add_argument("--max-iters", type=int, default=None)
@@ -98,13 +77,15 @@ def main():
                     choices=["task102-missing-paragraph-style-v1"],
                     help="explicit versioned post-Agent evaluator correction")
     args = ap.parse_args()
+    from benchmarks.osworld.runtime import _install_paths
+    _install_paths()
     if args.evaluator_correction and args.task_id != "task_102":
         ap.error("this evaluator correction applies only to task_102")
-    config_reference = args.config or os.environ.get("FORGE_CONFIG")
-    config_path = (resolve_forge_path(config_reference, forge_root=FORGE_ROOT)
+    config_reference = args.config or os.environ.get("RSIAGENT_CONFIG")
+    config_path = (resolve_path(config_reference, repo_root=RSIAGENT_ROOT)
                    if config_reference else None)
     benchmark_lock_record = configure_associated_benchmark_lock(
-        config_path, forge_root=FORGE_ROOT)
+        config_path, repo_root=RSIAGENT_ROOT)
     if benchmark_lock_record:
         log.info(
             "bound direct run to %s evaluator %s through associated lock %s",
@@ -112,7 +93,7 @@ def main():
             benchmark_lock_record["evaluator_model"],
             benchmark_lock_record["path"])
     cfg = load_config(str(config_path) if config_path else None)
-    normalize_verifier_config_paths(cfg, FORGE_ROOT)
+    normalize_verifier_config_paths(cfg, RSIAGENT_ROOT)
     memory_record = {
         "mode": "off",
         "source": "",
@@ -122,8 +103,8 @@ def main():
         "host_writeback": False,
     }
     if args.memory_dir:
-        from explore.e15_loop import _manifest, _read_memory_tree  # noqa: E402
-        from explore.e15_v12_loop import _memory_tree_sha256       # noqa: E402
+        from explore.practice_loop import _manifest, _read_memory_tree  # noqa: E402
+        from explore.target_learning import _memory_tree_sha256       # noqa: E402
 
         raw_memory_path = Path(args.memory_dir).expanduser()
         if raw_memory_path.is_symlink():
@@ -152,7 +133,7 @@ def main():
     from env.qemu_rollback import (                         # noqa: E402
         normalize_verifier_execution_mode,
     )
-    from qemu_provider import (                             # noqa: E402
+    from benchmarks.osworld.provider import (                             # noqa: E402
         prepare_checkpointable_docker_provider,
     )
     verifier_execution_mode = normalize_verifier_execution_mode(
@@ -188,7 +169,7 @@ def main():
 
     de = DesktopEnv(provider_name="docker", action_space="pyautogui", os_type="Ubuntu",
                     screen_size=(1920, 1080), headless=True, require_a11y_tree=False,
-                    cache_dir=os.environ.get("FORGE_OSWORLD_CACHE_DIR", "cache"),
+                    cache_dir=os.environ.get("RSIAGENT_OSWORLD_CACHE_DIR", "cache"),
                     volume_size=60)   # 60G: the near-full v2 image needs the guest fs grown
     preserve_completed_vm = False
     try:
@@ -202,7 +183,7 @@ def main():
 
         quarantined_evaluators = []
         if getattr(cfg, "actor_evaluator_isolation", False):
-            from osworld_actor_boundary import (                 # noqa: E402
+            from benchmarks.osworld.actor_boundary import (                 # noqa: E402
                 quarantine_actor_visible_evaluators,
             )
             quarantined_evaluators = quarantine_actor_visible_evaluators(vm)
@@ -211,11 +192,12 @@ def main():
                 "Actor work", len(quarantined_evaluators))
 
         if args.smoke:
-            print("SMOKE", "PASS" if smoke(vm) else "FAIL")
-            return
+            passed = smoke(vm)
+            print("SMOKE", "PASS" if passed else "FAIL")
+            return 0 if passed else 1
 
         _seed_dir = f"seed{args.seed}" + (f"_{args.tag}" if args.tag else "")
-        sink = ArtifactSink(os.path.join(FORGE, "results", args.task_id, _seed_dir))
+        sink = ArtifactSink(os.path.join(RSIAGENT_ROOT, "results", args.task_id, _seed_dir))
         reset_provider_counts()
         print(f"\n=== {args.task_id} seed{args.seed} model={cfg.model} ===\n"
               f"{instruction}\n")
@@ -238,62 +220,7 @@ def main():
                     f"  {os.path.getsize(os.path.join(cfg.env_memory_dir, f)):>7}  {f}"
                     for f in _files)
                 opening_extra = memory_preamble(_ls)
-                if getattr(cfg, "env_memory_orient", False):
-                    from explore.charter import orient_suffix
-                    opening_extra += orient_suffix()
-                log.info("env memory attached (%s, files %d, orient=%s)",
-                         cfg.env_memory_dir, len(_files),
-                         getattr(cfg, "env_memory_orient", False))
-                if getattr(cfg, "env_memory_brief", False):
-                    # BRIEF-RUN Phase 0 (fallback-2, wenyi-approved 07-30):
-                    # briefing session -> agent writes ~/briefing.md -> mounted
-                    # VERBATIM into the main run's system prompt; main run gets
-                    # the REMAINING budget (one shared pool, arm-comparable) and
-                    # a fresh history. Fail-open on any Phase-0 misfire.
-                    from dataclasses import replace as _replace   # noqa: E402
-                    from core.loop import run_attempt             # noqa: E402
-                    from explore.charter import brief_charter, brief_mount  # noqa: E402
-                    bsink = ArtifactSink(os.path.join(
-                        FORGE, "results", args.task_id, _seed_dir, "brief"))
-                    # MISFIRE-1 fix (07-30): Phase 0 inherited the eval config's
-                    # adversarial machinery — a 2-read look ensemble SPLIT on the
-                    # drawing and the split-resolution protocol (task-frame
-                    # language) froze GLM into a 3-dry stall inside the PREP
-                    # frame. Prep wants plain reading, not dispute machinery:
-                    # single-witness looks, no split ledger, and the strict
-                    # action-discipline line to narration-proof the session.
-                    bcfg = _replace(cfg, practice_mode=True, look_ensemble=1,
-                                    split_done_gate=False, action_discipline=True,
-                                    practice_done_requires="~/briefing.md")
-                    bres, bhist = run_attempt(
-                        brief_charter(instruction, _idx, _ls), vm, bcfg, bsink)
-                    bsink.save_transcript(build_system(bcfg), bhist)
-                    btr = vm.run_script("bash", "cat ~/briefing.md")
-                    briefing = (btr.stdout or "").strip()
-                    ok = bool(briefing) and "No such file" not in briefing
-                    if ok:
-                        # Fix B: FACTS pinned; PLAN rides as sinking opening
-                        # text after the memory preamble. Unheadered briefing
-                        # -> zero pinned authority (conservative fallback).
-                        from explore.charter import split_briefing
-                        _facts, _plan = split_briefing(briefing)
-                        cfg = _replace(
-                            cfg,
-                            system_extra=brief_mount(_facts) if _facts else "",
-                            max_iters=max(cfg.max_iters - bres.iters, 10),
-                            wall_clock_secs=max(
-                                cfg.wall_clock_secs - bres.wall_secs, 600))
-                        if _plan:
-                            opening_extra += ("\n\nYOUR PREP-PHASE PLAN (your"
-                                              " own working notes — revise "
-                                              "freely as the work teaches "
-                                              "you):\n---\n" + _plan
-                                              + "\n---\n")
-                    log.info("brief phase: %s in %d iters/%.0fs; briefing %d chars"
-                             " -> main budget %d iters/%.0fs",
-                             bres.status, bres.iters, bres.wall_secs,
-                             len(briefing) if ok else 0,
-                             cfg.max_iters, cfg.wall_clock_secs)
+                log.info("env memory attached (%s, files %d)", cfg.env_memory_dir, len(_files))
             else:
                 log.warning("env memory push FAILED — running memory-OFF")
         ask_user = (de.user_simulator.respond
@@ -435,4 +362,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

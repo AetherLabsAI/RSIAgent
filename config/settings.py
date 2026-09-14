@@ -1,10 +1,10 @@
-"""forge configuration — one model, loop budgets. Plain dataclass, optional YAML overlay."""
+"""rsiagent configuration — one model, loop budgets. Plain dataclass, optional YAML overlay."""
 from dataclasses import dataclass
 
 
 @dataclass
 class Config:
-    model: str = "minimax/minimax-m3"   # primary PoC model (cheap; the flywheel-thesis target)
+    model: str = "z-ai/glm-5.3"   # Default Actor model; role YAML files pin complete settings.
     max_tokens: int = 10000             # M3 truncation floor is ~8000; headroom for code
     temperature: float = 0.0
     provider_order: tuple = ()          # Optional OpenRouter provider preference,
@@ -21,28 +21,14 @@ class Config:
     #                                     searches/previews/reads/re-reads; no file
     #                                     body or privileged index is injected. "" = OFF
     #                                     (byte-identical eval; the default).
-    env_memory_orient: bool = False     # ORIENT arm (fallback-1+, wenyi): ask the
-    #                                     agent to review its memory FIRST and
-    #                                     state whether/how it applies to this
-    #                                     task, then proceed. Judgment stays its
-    #                                     own; only the looking is asked.
-    env_memory_brief: bool = False      # BRIEF-RUN arm (fallback-2, wenyi 07-30):
-    #                                     Phase 0 = briefing session on the live VM
-    #                                     (task + memory; agent-decided length,
-    #                                     shared budget) -> agent writes
-    #                                     ~/briefing.md -> mounted VERBATIM into
-    #                                     the main run's system prompt; main run
-    #                                     starts with FRESH history. Fail-open:
-    #                                     no briefing -> normal preamble run.
     system_extra: str = ""              # appended to build_system() output —
-    #                                     carrier for the BRIEF-RUN mount (agent-
-    #                                     authored text only; never set by hand).
+    #                                     optional additional system instructions.
     done_witness_gates: bool = False    # P2-v9 D-1/D-2 (self-report probe
     #                                     rejection + one-shot witness bounce).
     #                                     Default OFF = legacy done-path (v41
     #                                     flagship behavior preserved exactly);
     #                                     ON in the E2 ablation/exam configs
-    verifier_items: bool = False        # E4-A1c (wenyi 08-08): the inspector's
+    verifier_items: bool = False        # E4-A1c (): the inspector's
     #                                     per-requirement judgement as DATA
     #                                     ("items": [{req,status,evidence}]) beside
     #                                     the prose findings — bounces name the
@@ -51,7 +37,7 @@ class Config:
     #                                     between inspections becomes measurable.
     #                                     The scalar verdict stays the inspector's
     #                                     own call. Default OFF = byte-exact.
-    verifier_elastic_depth: bool = False  # E4-A1b (wenyi 08-08: "let verifier
+    verifier_elastic_depth: bool = False  # E4-A1b (: "let verifier
     #                                     decide its own depth, we are not cap
     #                                     anything"): the inspection ends when the
     #                                     VERIFIER rules, not when a round counter
@@ -61,7 +47,7 @@ class Config:
     #                                     "N rounds left" pressure line is replaced
     #                                     by "rule when YOUR evidence settles it".
     #                                     Default OFF = capped legacy behavior.
-    verifier_continuity: bool = False   # E4-A1 (wenyi 08-08, E3 exit-door fix):
+    verifier_continuity: bool = False   # E4-A1 (, E3 exit-door fix):
     #                                     the verifier becomes ONE continuing
     #                                     session per run (its verdicts = its own
     #                                     history, RIH-preserved); after a WRONG,
@@ -165,21 +151,11 @@ class Config:
     #                                     (no task checks/inspection — no task
     #                                     exists); pair with independent_verify
     #                                     false. Inert everywhere else.
-    practice_stall_iters: int = 0       # E7 stall detector (PREREG_E7 §5, B5):
-    #                                     consecutive no-progress probes (find
-    #                                     -newer stamp, ~/.memory INCLUDED, live
-    #                                     melt/ffmpeg = progress) before the e7
-    #                                     loop ends the night as
-    #                                     stalled_quiescent. Hooked at the e7
-    #                                     loop between iterations — core/loop.py
-    #                                     never reads it. 0 = OFF (the default;
-    #                                     load() drops unknown YAML keys, so the
-    #                                     field must exist here to reach cfg).
     top_p: float = -1.0                 # >=0 SENDS top_p explicitly; -1 omits the
     #                                     field entirely (provider default). K3's
     #                                     report pins "temperature = 1.0 and
     #                                     top-p = 1.0" — we were compliant only by
-    #                                     accident (never sent it). wenyi 08-09:
+    #                                     accident (never sent it).  08-09:
     #                                     "top p is crucial for k3 setting" -> pin it.
     primary_temperature: float = -1.0   # >=0 overrides temperature for the PRIMARY
     #                                     actor's decode loop ONLY (K3 report 07-27:
@@ -316,7 +292,7 @@ class Config:
     #                                     human can inspect exactly what the model
     #                                     saw (the alpha-flatten bug hid for 3 runs
     #                                     because nobody could open those pixels).
-    vision_model_2: str = ""            # v33 (wenyi): the SECOND witness's model.
+    vision_model_2: str = ""            # v33 (): the SECOND witness's model.
     #                                     Two same-model reads share one set of blind
     #                                     spots — agreement can be one wrong opinion
     #                                     counted twice (t003 unanimous-wrong). A
@@ -350,7 +326,7 @@ class Config:
     #                                     synthesize one from the discarded history so
     #                                     the fresh attempt doesn't re-recon (t032 s900
     #                                     resume1 re-derived the whole hexo state).
-    verifier_vision_model: str = ""     # v39.1 (wenyi: FULL MULTIMODAL EVERY RUN):
+    verifier_vision_model: str = ""     # v39.1 (: FULL MULTIMODAL EVERY RUN):
     #                                     the INSPECTOR's eyes route. "" = legacy
     #                                     (vision_model, i.e. blind when native);
     #                                     "self" = the PRIMARY serves the inspector's
@@ -371,7 +347,7 @@ class Config:
     #                                     We violated this all campaign; narration and
     #                                     empty-at-stop are plausible SYMPTOMS. Actor
     #                                     main loop only. False = content-only (legacy).
-    reasoning_max_tokens: int = 0       # v37 (wenyi: max reasoning, accuracy-only):
+    reasoning_max_tokens: int = 0       # v37 (: max reasoning, accuracy-only):
     #                                     cap for the model's THINKING channel, sent as
     #                                     {"reasoning":{"max_tokens":N}} when
     #                                     reasoning_effort is empty. k3: reasoning is

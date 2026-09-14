@@ -12,20 +12,38 @@ from core.self_evolving_loop import SelfEvolvingLoopHooks
 from explore.charter import phase1_wave_curriculum_charter
 from explore.phase1_wave import parse_wave_handoff
 import run_recursive_improvement as protocol
-import run_self_evolving as phase2_runner
+import run_phase2 as phase2_runner
 
 
 REPO = Path(__file__).resolve().parents[1]
-EXAMPLE = REPO / "config/recursive_self_improvement.example.json"
-PHASE2_CONFIG = REPO / "config/osworld_v2_glm53_k3_recursive_practice.yaml"
-PHASE3_CONFIG = REPO / "config/osworld_v2_glm53_k3_recursive_eval.yaml"
-PHASE3_LOCK = REPO / "config/osworld_v2_glm53_k3_recursive_eval.lock.json"
+EXAMPLE = REPO / "config/osworld/rsi.example.json"
+PHASE2_CONFIG = REPO / "config/roles/target.yaml"
+PHASE3_CONFIG = REPO / "config/osworld/baseline.yaml"
+PHASE3_LOCK = REPO / "config/osworld/evaluation.lock.json"
+
+
+@pytest.fixture(autouse=True)
+def prepared_release_assets(tmp_path, monkeypatch):
+    """Exercise real release validation using a local metadata fixture."""
+    lock = json.loads(PHASE3_LOCK.read_text())
+    assets = lock['task_assets']
+    root = tmp_path / 'OSWorld-V2'
+    folder = root / assets['local_dir']
+    folder.mkdir(parents=True)
+    marker = {'benchmark_release': lock['task_release'],
+              **{key: assets[key] for key in ('repository', 'repo_type', 'tag', 'commit')}}
+    (folder / assets['release_marker']).write_text(json.dumps(marker))
+    monkeypatch.setattr(protocol, 'OSWORLD_ROOT', root)
+    monkeypatch.setenv('OSWORLD_FILE_BASE_URL', '')
+    monkeypatch.setenv('WEBSITE_HOST_SUFFIX', '')
 
 
 def _spec(tmp_path: Path, *, development=None, held_out=None,
           distribution=None) -> Path:
     value = json.loads(EXAMPLE.read_text(encoding="utf-8"))
     value["run_name"] = "unit_protocol"
+    value["study_design"] = "held_out_generalization"
+    value["phase1"]["distribution_file"] = "config/osworld_v2_training_distribution.md"
     value["phase2"]["development_tasks"] = development or []
     value["phase3"]["held_out_tasks"] = held_out or []
     if distribution is not None:
@@ -35,13 +53,13 @@ def _spec(tmp_path: Path, *, development=None, held_out=None,
     return path
 
 
-def test_example_declares_three_disjoint_modes_and_budget_checkpoints():
+def test_example_declares_target_conditioned_phases_and_budget_checkpoints():
     spec = protocol.load_protocol(EXAMPLE)
 
     assert spec["phase1"]["project_budget"] == 8
-    assert spec["phase1"]["checkpoints"] == [0, 2, 4, 8]
-    assert spec["_resolved"]["development_tasks"] == ()
-    assert spec["_resolved"]["held_out_tasks"] == ()
+    assert spec["phase1"]["checkpoints"] == [0, 4, 8]
+    assert spec["_resolved"]["development_tasks"] == ("task_080",)
+    assert spec["_resolved"]["held_out_tasks"] == ("task_080",)
     assert protocol.preflight(spec, "phase1")[
         "official_grader_available_in_phase"] is False
     assert protocol.preflight(spec, "phase2")[
@@ -52,10 +70,6 @@ def test_example_declares_three_disjoint_modes_and_budget_checkpoints():
         "memory_mutable_in_phase"] is False
     assert protocol.preflight(spec, "phase3")[
         "curriculum_enabled_in_phase"] is False
-    assert protocol.preflight(spec, "phase2")["status"] == \
-        "configuration_required"
-    assert "phase2.development_tasks is empty" in \
-        protocol.preflight(spec, "phase2")["blockers"]
     lock = protocol._protocol_lock(spec, EXAMPLE.read_bytes())
     assert lock["boundaries"] == {
         "official_evaluator_calls_phase1": 0,
@@ -203,7 +217,7 @@ def test_phase2_runner_accepts_clean_profile_and_has_no_evaluator_hook():
         memory_config = str(phase2_runner.DEFAULT_MEMORY_CONFIG)
 
     configs, _paths = phase2_runner._load_configs(
-        Args(), phase2_training=True)
+        Args())
     assert configs["target_actor"].verifier_stage_lifecycle is False
     assert "evaluator" not in SelfEvolvingLoopHooks.__dataclass_fields__
     assert "score" not in SelfEvolvingLoopHooks.__dataclass_fields__
@@ -213,7 +227,7 @@ def test_phase2_selects_release_specific_benchmark_provenance():
     profile = protocol.BENCHMARK_PROVENANCE_PROFILES[
         "osworld-v2-2026.08.08"]
     assert profile.name == \
-        "osworld_v2_0808_glm53_k3_agentic_baseline.lock.json"
+        "baseline.lock.json"
     source = (REPO / "run_recursive_improvement.py").read_text(
         encoding="utf-8")
     assert '"--benchmark-profile", str(benchmark_profile)' in source
@@ -234,10 +248,10 @@ def test_explicit_practice_verifier_controls_full_agentic_verifier(tmp_path):
 
 
 def test_phase2_learns_from_both_outcomes_with_explicit_pass_policy():
-    source = (REPO / "run_self_evolving.py").read_text(encoding="utf-8")
-    assert "learn_on_pass=args.phase2_training" in source
+    source = (REPO / "run_phase2.py").read_text(encoding="utf-8")
+    assert "learn_on_pass=True" in source
     assert 'args.phase2_stop_policy == "curriculum_review"' in source
-    assert '"phase2_outcome_protocol" if args.phase2_training' in source
+    assert "phase2_outcome_protocol" in source
     assert "terminal_outcome=verdict.value" in source
     assert 'only a grounded PASS/FAIL may enter durable memory' in source
 

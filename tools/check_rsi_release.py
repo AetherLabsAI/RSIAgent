@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 def main() -> int:
     environment = dict(os.environ)
-    environment["FORGE_ROOT"] = str(REPO)
+    environment["RSIAGENT_ROOT"] = str(REPO)
     return subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "tests"],
         cwd=REPO, env=environment, check=False).returncode

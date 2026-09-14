@@ -1,7 +1,6 @@
 """Curriculum routing and practice adapter for the on-demand unified loop.
 
-Unlike :func:`explore.e15_v12_loop.e15_v12_evolve`, this adapter never runs the
-north-star target and cannot declare it converged. The same persistent Curriculum
+This adapter runs practice projects and returns memory for a fresh target retry. The same persistent Curriculum
 Agent first routes a target Verifier Agent's FAIL to REVISE or EVOLVE. After EVOLVE,
 it runs only null-task practice projects and returns when it declares
 ``READY_FOR_RETRY``.
@@ -21,16 +20,16 @@ from explore.charter import (
     unified_curriculum_pass_charter,
     unified_curriculum_route_charter,
 )
-from explore.e15_loop import (
+from explore.practice_loop import (
     _UNIFIED_CURRICULUM_TOKEN,
     CURRICULUM_HANDOFF,
     CURRICULUM_NOTES,
     DEFAULT_CORPUS,
     PROJECT_ROOT,
-    E15BoundaryError,
-    E15Hooks,
-    E15InfrastructureError,
-    E15Result,
+    PracticeBoundaryError,
+    PracticeHooks,
+    PracticeInfrastructureError,
+    PracticeResult,
     _atomic_json,
     _atomic_text,
     _capture_owned_tree,
@@ -43,8 +42,8 @@ from explore.e15_loop import (
     _read_memory_tree,
     _run_handoff_phase,
 )
-from explore.e15_v12_loop import (
-    E15PublicationError,
+from explore.target_learning import (
+    PracticePublicationError,
     _memory_tree_sha256,
     _outcome_text,
     _promote_learning,
@@ -85,10 +84,10 @@ class CurriculumRoutingDecision:
     def __post_init__(self) -> None:
         normalized = str(self.route).strip().upper()
         if normalized not in {"REVISE", "EVOLVE"}:
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 f"unknown Curriculum Agent target route: {self.route!r}")
         if not isinstance(self.report, str) or not self.report.strip():
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "Curriculum Agent routing report is empty")
         object.__setattr__(self, "route", normalized)
 
@@ -103,17 +102,17 @@ class CurriculumPassDecision:
     def __post_init__(self) -> None:
         normalized = str(self.route).strip().upper()
         if normalized not in {"HANDOFF", "VERIFY_MORE"}:
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 f"unknown Curriculum Agent PASS route: {self.route!r}")
         if not isinstance(self.report, str) or not self.report.strip():
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "Curriculum Agent PASS routing report is empty")
         object.__setattr__(self, "route", normalized)
 
 
 def route_target_pass(
         vm, root: str, target: str, verifier_orientation: str,
-        verifier_report: str, curriculum_cfg, *, hooks: E15Hooks | None = None,
+        verifier_report: str, curriculum_cfg, *, hooks: PracticeHooks | None = None,
         event_sink: Callable[..., Any] | None = None,
         session: UnifiedCurriculumSession | None = None,
         ) -> CurriculumPassDecision:
@@ -124,16 +123,16 @@ def route_target_pass(
     end the outer search; it cannot replace or override the local PASS/FAIL role.
     """
 
-    hooks = hooks or E15Hooks()
+    hooks = hooks or PracticeHooks()
     session = session or UnifiedCurriculumSession()
     if not target.strip():
-        raise E15InfrastructureError("immutable target query is empty")
+        raise PracticeInfrastructureError("immutable target query is empty")
     if not verifier_report.strip():
-        raise E15InfrastructureError("target Verifier Agent PASS report is empty")
+        raise PracticeInfrastructureError("target Verifier Agent PASS report is empty")
     if not any(
             line.strip().upper() == "VERDICT: PASS"
             for line in verifier_report.splitlines()):
-        raise E15InfrastructureError(
+        raise PracticeInfrastructureError(
             "Curriculum PASS routing requires a committed Verifier Agent PASS")
 
     audit_target = _target_audit_surface(target)
@@ -142,7 +141,7 @@ def route_target_pass(
             ("PASS report", verifier_report)):
         if text and hooks.audit_text(
                 text, mode="exam", authorized_instruction=audit_target):
-            raise E15BoundaryError(
+            raise PracticeBoundaryError(
                 f"target Verifier Agent {label} failed target boundary")
 
     route_root = Path(root)
@@ -170,7 +169,7 @@ def route_target_pass(
     if notes:
         if hooks.audit_text(
                 notes, mode="exam", authorized_instruction=audit_target):
-            raise E15BoundaryError("Curriculum notes failed target boundary")
+            raise PracticeBoundaryError("Curriculum notes failed target boundary")
         session.notes = notes
     session.route_summaries.append(
         f"target PASS review {session.target_passes}: {decision.token}")
@@ -203,7 +202,7 @@ def route_target_pass(
 
 def route_target_failure(
         vm, root: str, target: str, verifier_report: str, curriculum_cfg,
-        *, hooks: E15Hooks | None = None,
+        *, hooks: PracticeHooks | None = None,
         event_sink: Callable[..., Any] | None = None,
         session: UnifiedCurriculumSession | None = None,
         ) -> CurriculumRoutingDecision:
@@ -214,23 +213,23 @@ def route_target_failure(
     semantic context for later failures and practice search.
     """
 
-    hooks = hooks or E15Hooks()
+    hooks = hooks or PracticeHooks()
     session = session or UnifiedCurriculumSession()
     if not target.strip():
-        raise E15InfrastructureError("immutable target query is empty")
+        raise PracticeInfrastructureError("immutable target query is empty")
     if not verifier_report.strip():
-        raise E15InfrastructureError("target Verifier Agent FAIL report is empty")
+        raise PracticeInfrastructureError("target Verifier Agent FAIL report is empty")
     if not any(
             line.strip().upper() == "VERDICT: FAIL"
             for line in verifier_report.splitlines()):
-        raise E15InfrastructureError(
+        raise PracticeInfrastructureError(
             "Curriculum routing requires a committed Verifier Agent FAIL")
 
     audit_target = _target_audit_surface(target)
     if hooks.audit_text(
             verifier_report, mode="exam",
             authorized_instruction=audit_target):
-        raise E15BoundaryError(
+        raise PracticeBoundaryError(
             "target Verifier Agent FAIL report failed target boundary")
 
     route_root = Path(root)
@@ -258,7 +257,7 @@ def route_target_failure(
     if notes:
         if hooks.audit_text(
                 notes, mode="exam", authorized_instruction=audit_target):
-            raise E15BoundaryError("Curriculum notes failed target boundary")
+            raise PracticeBoundaryError("Curriculum notes failed target boundary")
         session.notes = notes
     session.route_summaries.append(
         f"target failure {session.target_failures}: {decision.token}")
@@ -297,10 +296,10 @@ def evolve_until_ready(
         curriculum_memory_access: str = "read_only",
         agentic_verifier_cfg=None,
         target_visible_inputs: tuple[str, ...] | None = None,
-        hooks: E15Hooks | None = None,
+        hooks: PracticeHooks | None = None,
         event_sink: Callable[..., Any] | None = None,
         session: UnifiedCurriculumSession | None = None,
-        resume_boundary=None) -> E15Result:
+        resume_boundary=None) -> PracticeResult:
     """Let Curriculum choose experiences until it returns target control.
 
     ``phase2_outcome_protocol`` accepts either a grounded PASS or FAIL after the
@@ -318,7 +317,7 @@ def evolve_until_ready(
     if (resume_boundary is not None and curriculum_memory_access !=
             getattr(resume_boundary, 'curriculum_memory_access', 'read_only')):
         raise ValueError("recovery cannot change Curriculum memory access")
-    hooks = hooks or E15Hooks()
+    hooks = hooks or PracticeHooks()
     session = session or UnifiedCurriculumSession()
     if resume_boundary is not None:
         resume_boundary.validate_evolution(
@@ -342,7 +341,7 @@ def evolve_until_ready(
     project_summaries = session.project_summaries
     normalized_outcome = str(triggering_outcome).strip().upper()
     if normalized_outcome not in {"PASS", "FAIL"}:
-        raise E15InfrastructureError(
+        raise PracticeInfrastructureError(
             f"unknown grounded target outcome: {triggering_outcome!r}")
     if trigger_authority == "curriculum_route":
         project_summaries.append(
@@ -358,7 +357,7 @@ def evolve_until_ready(
             "committed grounded memory before Curriculum selected the next "
             "experience")
     else:
-        raise E15InfrastructureError(
+        raise PracticeInfrastructureError(
             f"unknown evolution trigger authority: {trigger_authority!r}")
     if resume_boundary is not None:
         records = (resume_boundary.project_records or [resume_boundary.project]
@@ -383,7 +382,7 @@ def evolve_until_ready(
             payload=payload)
 
     def finish(status: str, reason: str = "", terminal_text: str = "") \
-            -> E15Result:
+            -> PracticeResult:
         memory = _read_memory_tree(str(memory_dir))
         _atomic_json(state_path, {
             "schema_version": 1,
@@ -404,7 +403,7 @@ def evolve_until_ready(
             "memory_manifest": _manifest(memory),
             "memory_tree_sha256": _memory_tree_sha256(memory),
         })
-        return E15Result(
+        return PracticeResult(
             status=status,
             projects=project_index,
             root=str(lineage),
@@ -416,57 +415,57 @@ def evolve_until_ready(
 
     try:
         if not target.strip():
-            raise E15InfrastructureError("immutable target query is empty")
+            raise PracticeInfrastructureError("immutable target query is empty")
         if not triggering_report.strip():
-            raise E15InfrastructureError("EVOLVE trigger report is empty")
+            raise PracticeInfrastructureError("EVOLVE trigger report is empty")
         if not triggering_diagnosis.strip():
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "target Actor learning diagnosis is empty")
         if not any(
                 line.strip().upper() == f"VERDICT: {normalized_outcome}"
                 for line in triggering_report.splitlines()):
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "learning trigger lacks the committed Verifier Agent "
                 f"{normalized_outcome}")
         if (trigger_authority != "phase2_outcome_protocol"
                 and normalized_outcome != "FAIL"):
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "historical evolution authorities require a concrete FAIL")
         if trigger_authority == "curriculum_route":
             if not any(
                     line.strip().upper() == "ROUTE: EVOLVE"
                     for line in routing_report.splitlines()):
-                raise E15InfrastructureError(
+                raise PracticeInfrastructureError(
                     "EVOLVE trigger lacks the Curriculum Agent route")
         elif routing_report.strip():
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "outcome protocol trigger must not manufacture a "
                 "Curriculum Agent routing report")
         if _read_memory_tree(str(memory_dir)) and resume_boundary is None:
-            raise E15InfrastructureError(
+            raise PracticeInfrastructureError(
                 "unified evolution cycle requires a new empty lineage root")
 
         hooks.validate_corpus(corpus_path)
         if hooks.audit_text(
                 triggering_report, mode="exam",
                 authorized_instruction=audit_target):
-            raise E15BoundaryError("EVOLVE trigger report failed target boundary")
+            raise PracticeBoundaryError("EVOLVE trigger report failed target boundary")
         if hooks.audit_text(
                 triggering_diagnosis, mode="exam",
                 authorized_instruction=audit_target):
-            raise E15BoundaryError(
+            raise PracticeBoundaryError(
                 "target Actor learning diagnosis failed target boundary")
         if routing_report and hooks.audit_text(
                 routing_report, mode="exam",
                 authorized_instruction=audit_target):
-            raise E15BoundaryError(
+            raise PracticeBoundaryError(
                 "Curriculum Agent routing report failed target boundary")
         accepted_memory = hooks.audit_memory(
             initial_memory, corpus_path,
             str(lineage / "audit_rejects.jsonl"),
             authorized_instruction=audit_target, require_corpus=True)
         if accepted_memory != initial_memory:
-            raise E15BoundaryError("input memory failed target boundary")
+            raise PracticeBoundaryError("input memory failed target boundary")
         if resume_boundary is None:
             hooks.install_memory(str(memory_dir), accepted_memory)
 
@@ -555,7 +554,7 @@ def evolve_until_ready(
                     curriculum_memory_dir = lineage / "curriculum_empty_memory"
                     curriculum_memory_dir.mkdir(exist_ok=True)
                     if any(curriculum_memory_dir.iterdir()):
-                        raise E15InfrastructureError(
+                        raise PracticeInfrastructureError(
                             "Curriculum ablation attachment must remain empty")
                 _push_canonical_memory(hooks, vm, str(curriculum_memory_dir))
                 session.turns += 1
@@ -610,7 +609,7 @@ def evolve_until_ready(
                         if hooks.audit_text(
                                 notes, mode="practice",
                                 authorized_instruction=audit_target):
-                            raise E15BoundaryError(
+                            raise PracticeBoundaryError(
                                 "Curriculum notes failed target boundary")
                         curriculum_notes = notes
                         session.notes = notes
@@ -655,7 +654,7 @@ def evolve_until_ready(
                         _capture_owned_tree(
                             hooks, vm, f"ep{candidate_index:03d}-fixtures",
                             str(fixture_dir), audit_target)
-                    except E15PublicationError:
+                    except PracticePublicationError:
                         curriculum_prompt = _continuation_after_transport(
                             "CURRICULUM", CURRICULUM_HANDOFF,
                             f"{PROJECT_ROOT} was absent, empty, or not replayable")
@@ -739,9 +738,9 @@ def evolve_until_ready(
                         diagnosis.encode("utf-8")).hexdigest(),
                 })
 
-    except E15BoundaryError as exc:
+    except PracticeBoundaryError as exc:
         return finish("quarantined", str(exc))
-    except E15InfrastructureError as exc:
+    except PracticeInfrastructureError as exc:
         return finish("infra", str(exc))
     except Exception as exc:  # noqa: BLE001 - durable inspectable incident
         return finish("infra", f"{type(exc).__name__}: {exc}")

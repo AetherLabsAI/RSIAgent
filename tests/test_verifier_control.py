@@ -69,7 +69,7 @@ def test_executor_uses_control_for_wrappers_and_never_falls_back():
             calls.append(code)
             return result
     class VM:
-        env = SimpleNamespace(client_password='held-by-harness', _forge_verifier_control=Control())
+        env = SimpleNamespace(client_password='held-by-harness', _rsiagent_verifier_control=Control())
         def run_script(self, *_args, **_kwargs):
             pytest.fail('must not fall back to ordinary model execution')
     executor = AgenticVerifierExecutor(VM())

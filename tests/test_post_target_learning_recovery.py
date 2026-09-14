@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from core.self_evolving_loop import EvolutionResult, EvolutionStatus, TargetVerdict
-from explore.e15_loop import E15InfrastructureError, _manifest
+from explore.practice_loop import PracticeInfrastructureError, _manifest
 from explore.phase2_recovery import Phase2CurriculumRecovery
 from explore.post_target_learning_recovery import continue_after_target_learning
 
@@ -89,7 +89,7 @@ def test_admits_without_replaying_target_or_curriculum(boundary):
 @pytest.mark.parametrize('marker', ['result.json', 'memory_frozen', 'evolution_cycles', 'audit_rejects.jsonl'])
 def test_rejects_advanced_or_rejected_boundary(boundary, marker):
     (boundary.root / marker).touch()
-    with pytest.raises(E15InfrastructureError):
+    with pytest.raises(PracticeInfrastructureError):
         admit(boundary)
 
 
@@ -117,7 +117,7 @@ def test_rejects_invalid_saved_boundary(boundary, change):
         Path(b.plan['failed_runtime_log']).write_text('ordinary task failure')
     elif change == 'input_hash':
         b.plan['input_sha256'] = {str(b.root / 'events.jsonl'): 'bad'}; save(b.path, b.plan)
-    with pytest.raises((E15InfrastructureError, KeyError)):
+    with pytest.raises((PracticeInfrastructureError, KeyError)):
         admit(b)
 
 
@@ -140,7 +140,7 @@ def test_zero_practice_keeps_existing_pass_without_new_target(boundary, status, 
 
 def test_zero_practice_cannot_rewrite_actor_memory(boundary):
     hooks = SimpleNamespace(evolve=lambda *args: EvolutionResult(EvolutionStatus.READY_FOR_RETRY, {}, 0))
-    with pytest.raises(E15InfrastructureError, match='changed Actor memory'):
+    with pytest.raises(PracticeInfrastructureError, match='changed Actor memory'):
         continue_after_target_learning(admit(boundary), 'target', hooks)
 
 

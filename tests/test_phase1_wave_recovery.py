@@ -92,7 +92,7 @@ def test_wave_failure_keeps_original_result_and_closes_restored_vms(tmp_path, mo
 def test_completion_waits_for_whole_wave_then_freezes_actor_written_memory(
         tmp_path, monkeypatch, budget, expected_status):
     from explore import phase1_wave as wave
-    from explore.e15_loop import _manifest, _read_memory_tree
+    from explore.practice_loop import _manifest, _read_memory_tree
     original = {'status': 'infra', 'projects': 6, 'official_evaluator_calls': 0}
     for name in ('state.json', 'result.json', 'manifest.json'):
         (tmp_path / name).write_text(json.dumps(original))
@@ -152,7 +152,7 @@ def test_completion_waits_for_whole_wave_then_freezes_actor_written_memory(
 
 def completed_wave(tmp_path):
     import hashlib
-    from explore.e15_loop import _manifest
+    from explore.practice_loop import _manifest
     memory = tmp_path / 'memory'
     memory.mkdir()
     (memory / 'actor.md').write_text('Actor learned after a valid FAIL')
@@ -197,7 +197,7 @@ def resume_kwargs(root):
 
 def test_resume_keeps_memory_curriculum_and_next_wave_number(tmp_path, monkeypatch):
     from explore import phase1_wave as wave
-    from explore.e15_loop import E15Hooks
+    from explore.practice_loop import PracticeHooks
     history = completed_wave(tmp_path)
     checkpoint = tmp_path / 'checkpoints/project_000/memory/initial'
     checkpoint.parent.mkdir(parents=True)
@@ -210,7 +210,7 @@ def test_resume_keeps_memory_curriculum_and_next_wave_number(tmp_path, monkeypat
     monkeypatch.setattr(wave, '_author_wave', author)
     monkeypatch.setattr(wave, '_push_canonical_memory', lambda *args: None)
     result = wave.evolve_parallel_phase1(
-        **resume_kwargs(tmp_path), hooks=E15Hooks(validate_corpus=lambda _: None,
+        **resume_kwargs(tmp_path), hooks=PracticeHooks(validate_corpus=lambda _: None,
                                                audit_text=lambda *args, **kwargs: []),
         vm_factory=lambda: (SimpleNamespace(close=lambda: closed.append(True)), object()),
         event_sink=lambda name, **kw: events.append(name))
@@ -228,7 +228,7 @@ def test_resume_keeps_memory_curriculum_and_next_wave_number(tmp_path, monkeypat
     'wave_counter', 'incomplete_history', 'history_roles', 'invalid_assignment'])
 def test_invalid_wave_resume_never_overwrites_preserved_state(tmp_path, damage):
     from explore import phase1_wave as wave
-    from explore.e15_loop import E15InfrastructureError
+    from explore.practice_loop import PracticeInfrastructureError
     completed_wave(tmp_path)
     if damage == 'memory':
         (tmp_path / 'memory/actor.md').write_text('drift')
@@ -261,7 +261,7 @@ def test_invalid_wave_resume_never_overwrites_preserved_state(tmp_path, damage):
         record['project_id'] = 'different'
         path.write_text(json.dumps(record))
     original = (tmp_path / 'state.json').read_bytes()
-    with pytest.raises(E15InfrastructureError):
+    with pytest.raises(PracticeInfrastructureError):
         wave.evolve_parallel_phase1(**resume_kwargs(tmp_path),
                                    vm_factory=lambda: pytest.fail('Must not boot VM'))
     assert (tmp_path / 'state.json').read_bytes() == original

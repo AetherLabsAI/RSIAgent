@@ -9,7 +9,7 @@ import dataclasses
 import hashlib
 import json
 
-from explore.e15_loop import _manifest, _read_memory_tree
+from explore.practice_loop import _manifest, _read_memory_tree
 from explore.phase2_recovery import read, require, sha
 
 

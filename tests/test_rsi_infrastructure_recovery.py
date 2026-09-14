@@ -7,8 +7,8 @@ import types
 
 import pytest
 
-from explore.provision7 import _inventory_from_tgz, _symlink_digest
-from qemu_provider import prepare_checkpointable_docker_provider
+from explore.provisioning import _inventory_from_tgz, _symlink_digest
+from benchmarks.osworld.provider import prepare_checkpointable_docker_provider
 
 
 def archive(entries):

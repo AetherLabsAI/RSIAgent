@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 
 from config.settings import load
-from explore import e15_loop as E, unified_evolution as U
-from explore.e15_v12_loop import _memory_tree_sha256
+from explore import practice_loop as E, unified_evolution as U
+from explore.target_learning import _memory_tree_sha256
 from explore.phase2_recovery import Phase2CurriculumRecovery, sha
 from test_phase2_recovery import fixture, save, admit
 from test_unified_evolution import _VM, _hooks
@@ -89,7 +89,7 @@ def test_reject_corrupt_or_open_multi_practice_checkpoint_without_writes(tmp_pat
     else:
         plan = json.loads(f.plan.read_text()); plan['completed_projects'] = 9; save(f.plan, plan)
     before = {str(p): sha(p) for p in tmp_path.rglob('*') if p.is_file()}
-    with pytest.raises(E.E15InfrastructureError):
+    with pytest.raises(E.PracticeInfrastructureError):
         admit(f)
     assert before == {str(p): sha(p) for p in tmp_path.rglob('*') if p.is_file()}
 

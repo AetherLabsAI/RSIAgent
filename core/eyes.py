@@ -1,4 +1,4 @@
-"""forge eyes — R3 "two witnesses + judge" (v32, 2026-07-15; supersedes the v30 vote).
+"""rsiagent eyes — R3 "two witnesses + judge" (v32, 2026-07-15; supersedes the v30 vote).
 
 FORENSIC BASIS (results/r1r2_effectiveness.md, 12-run deep-read): the v30 ensemble's
 VOTING never beat a single read on a decisive perception (0/12) and its merged
@@ -37,7 +37,7 @@ from concurrent.futures import ThreadPoolExecutor
 from core.imagery import prepare_look_images
 from llm.client import LLMTransportError, chat
 
-log = logging.getLogger("forge.eyes")
+log = logging.getLogger("rsiagent.eyes")
 
 DEFAULT_Q = ("Describe everything visible in this image that could matter to a "
              "computer task, reading any text verbatim.")
@@ -227,7 +227,7 @@ def ensemble_look(cfg, question: str, datas: list, region=None) -> LookReport:
         return _mk_report(ans or "(vision tool returned nothing)")
 
     temp = float(getattr(cfg, "look_ensemble_temp", 0.8))
-    # v33 (wenyi): HETEROGENEOUS witnesses. Two same-model reads only decorrelate
+    # v33 (): HETEROGENEOUS witnesses. Two same-model reads only decorrelate
     # sampling noise — a systematic (architecture-shaped) misread is repeated twice
     # and its agreement launders wrongness into confidence (t003: unanimous-wrong).
     # A second MODEL has different blind spots: agreement means far more, and splits

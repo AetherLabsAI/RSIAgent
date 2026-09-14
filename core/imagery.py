@@ -12,7 +12,7 @@ import io
 import logging
 import re
 
-log = logging.getLogger("forge.imagery")
+log = logging.getLogger("rsiagent.imagery")
 
 MAX_SIDE = 1400          # overview / tile output bound (px, long side)
 TILE_THRESHOLD = 1800    # images larger than this (long side) also get tiles
@@ -132,7 +132,7 @@ def grid_cells(datas: list, rows: int, cols: int, cell=None):
 
 
 _IMG_EXT = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp")
-_RENDER_DIR = "/tmp/forge_render"
+_RENDER_DIR = "/tmp/rsiagent_render"
 _RENDER_TIMEOUT = 120          # soffice cold-start can be 20-40s; give headroom
 
 

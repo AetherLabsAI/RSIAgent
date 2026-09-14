@@ -1,6 +1,6 @@
 """Bind a direct benchmark run to the runtime declared by its config lock.
 
-The shard launcher normally exports evaluator and task-user-simulator routing
+The batch runner exports evaluator and task-user-simulator routing
 before it starts :mod:`run_task`.  Researchers also launch individual tasks
 directly while recovering or rerunning a result.  A config such as
 ``foo.yaml`` may therefore carry a sibling ``foo.lock.json``; this module makes
@@ -17,7 +17,7 @@ import os
 from collections.abc import MutableMapping
 from pathlib import Path
 
-from config.runtime_paths import resolve_env_file, resolve_forge_path
+from config.runtime_paths import resolve_env_file, resolve_path
 
 
 class BenchmarkRuntimeError(RuntimeError):
@@ -29,10 +29,10 @@ def _sha256(path: Path) -> str:
 
 
 def _load_secret(environment: MutableMapping[str, str], name: str,
-                 *, forge_root: Path) -> None:
+                 *, repo_root: Path) -> None:
     if environment.get(name):
         return
-    env_path = resolve_env_file(environment, forge_root)
+    env_path = resolve_env_file(environment, repo_root)
     try:
         lines = env_path.read_text(encoding="utf-8").splitlines()
     except OSError as exc:
@@ -63,19 +63,19 @@ def _bind(environment: MutableMapping[str, str], name: str, value: object,
 
 
 def configure_associated_benchmark_lock(
-        config_path: Path | None, *, forge_root: Path,
+        config_path: Path | None, *, repo_root: Path,
         environment: MutableMapping[str, str] | None = None) -> dict | None:
     """Apply the evaluator/user-channel runtime from a config's sibling lock.
 
-    ``FORGE_BENCHMARK_LOCK`` explicitly selects a lock.  Otherwise ``foo.yaml``
+    ``RSIAGENT_BENCHMARK_LOCK`` explicitly selects a lock.  Otherwise ``foo.yaml``
     discovers ``foo.lock.json``.  Configs without an associated lock preserve
     the historical generic ``run_task.py`` behavior.
     """
     if config_path is None:
         return None
     values = os.environ if environment is None else environment
-    explicit = values.get("FORGE_BENCHMARK_LOCK", "").strip()
-    lock_path = (resolve_forge_path(explicit, values, forge_root)
+    explicit = values.get("RSIAGENT_BENCHMARK_LOCK", "").strip()
+    lock_path = (resolve_path(explicit, values, repo_root)
                  if explicit else config_path.with_suffix(".lock.json"))
     if not lock_path.is_file():
         if explicit:
@@ -93,8 +93,8 @@ def configure_associated_benchmark_lock(
     if not isinstance(actor, dict):
         raise BenchmarkRuntimeError(
             f"associated benchmark lock has no actor_agent object: {lock_path}")
-    declared_config = resolve_forge_path(
-        str(actor.get("config", "")), values, forge_root)
+    declared_config = resolve_path(
+        str(actor.get("config", "")), values, repo_root)
     if declared_config != config_path.resolve():
         raise BenchmarkRuntimeError(
             f"associated lock binds a different Actor config: {declared_config}")
@@ -117,7 +117,7 @@ def configure_associated_benchmark_lock(
         raise BenchmarkRuntimeError(
             f"associated evaluator runtime lacks {missing}: {lock_path}")
     key_env = str(evaluator["api_key_env"])
-    _load_secret(values, key_env, forge_root=forge_root)
+    _load_secret(values, key_env, repo_root=repo_root)
     evaluator_bindings = {
         "OSWORLD_EVAL_MODEL_PROVIDER": evaluator["provider"],
         "OSWORLD_EVAL_MODEL_NAME": evaluator["model"],
@@ -145,7 +145,7 @@ def configure_associated_benchmark_lock(
             raise BenchmarkRuntimeError(
                 f"associated user-simulator runtime lacks {missing}: {lock_path}")
         user_key_env = str(user_simulator["api_key_env"])
-        _load_secret(values, user_key_env, forge_root=forge_root)
+        _load_secret(values, user_key_env, repo_root=repo_root)
         for name, value in {
                 "OSWORLD_USER_SIM_PROVIDER": user_simulator["provider"],
                 "OSWORLD_USER_SIM_MODEL": user_simulator["model"],
@@ -156,8 +156,8 @@ def configure_associated_benchmark_lock(
             _bind(values, name, value, lock_path=lock_path)
 
     lock_hash = _sha256(lock_path)
-    values["FORGE_BENCHMARK_LOCK_RESOLVED"] = str(lock_path.resolve())
-    values["FORGE_BENCHMARK_LOCK_SHA256"] = lock_hash
+    values["RSIAGENT_BENCHMARK_LOCK_RESOLVED"] = str(lock_path.resolve())
+    values["RSIAGENT_BENCHMARK_LOCK_SHA256"] = lock_hash
     return {
         "path": str(lock_path.resolve()),
         "sha256": lock_hash,

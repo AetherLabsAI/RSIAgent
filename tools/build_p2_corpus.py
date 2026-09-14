@@ -11,11 +11,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from config.runtime_paths import resolve_forge_root, resolve_osworld_root
+from config.runtime_paths import resolve_root, resolve_osworld_root
 
 V2 = str(resolve_osworld_root())
-FORGE = str(resolve_forge_root())
-for p in (V2, FORGE):
+RSIAGENT = str(resolve_root())
+for p in (V2, RSIAGENT):
     sys.path.insert(0, p)
 os.chdir(V2)
 
@@ -23,7 +23,7 @@ from task_loader import load_task_config, resolve_task_json_path   # noqa: E402
 from explore.commit import (CORPUS_NORMALIZATION, build_corpus,    # noqa: E402
                             normalize_instruction_for_corpus)
 
-OUT = os.path.join(FORGE, "results", "explore", "corpus_shingles.json")
+OUT = os.path.join(RSIAGENT, "results", "explore", "corpus_shingles.json")
 
 instructions, missing = [], []
 for i in range(1, 121):

@@ -49,7 +49,7 @@ direct memory view is read-only. The `none` comparison setting removes that dire
 view while retaining normal trajectory and Verifier Agent feedback. The Actor
 Agent's memory access remains enabled. The public protocol orchestrator currently
 uses the default view; the
-explicit comparison flag is available on `run_self_evolving.py`.
+explicit comparison flag is available on `run_phase2.py`.
 
 ## Phase 3
 
@@ -71,13 +71,15 @@ must be reported separately from unmodified official evaluation.
 | --- | --- |
 | `run_recursive_improvement.py` | Protocol validation and three-stage orchestration |
 | `run_phase1_exploration.py`, `explore/phase1_wave.py` | Phase 1 exploration and wave barrier |
-| `run_self_evolving.py`, `core/self_evolving_loop.py` | Phase 2 target/practice lifecycle |
+| `run_phase2.py`, `core/self_evolving_loop.py` | Phase 2 target/practice lifecycle |
 | `run_task.py` | Frozen-memory task execution and sealed evaluation |
 | `core/`, `llm/`, `env/` | Agent runtime, model transport, and guest interface |
 | `explore/` | Curriculum Agent orchestration, memory, provisioning, and recovery validation |
 | `config/` | Role profiles, runtime paths, and benchmark locks |
 | `tools/` | Preparation, audit, and batch utilities |
 
-Some internal modules retain historical `e6`/`e7`/`e15` names because the current
-runtime reuses their implementations. Start new studies through the documented
-protocol runner rather than those legacy entrypoints.
+The OSWorld adapter lives under `benchmarks/osworld/`; ALE lives under
+`benchmarks/ale/`. ALE's outer process owns provisioning and grading, while a
+separate worker process runs the shared learning runtime. Verified Phase 1 ALE
+branches can release their VM before ordered memory consolidation; their Actor
+contexts and captured candidates remain intact and are replayed when committing.

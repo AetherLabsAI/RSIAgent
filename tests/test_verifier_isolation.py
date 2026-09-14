@@ -48,21 +48,21 @@ class _RecordingVM:
         self.scripts.append({
             "lang": lang, "code": code, "timeout": timeout, "cap": cap,
             "allow_staging_fallback": allow_staging_fallback})
-        if "FORGE_VERIFIER_NAMESPACE_HEALTHY" in code:
+        if "RSIAGENT_VERIFIER_NAMESPACE_HEALTHY" in code:
             if self.fail_health:
                 return _runtime_trace(
                     "nsenter: cannot open /proc/43210/ns/mnt\n[exit 1]", 1)
             return _runtime_trace(
-                "FORGE_VERIFIER_NAMESPACE_HEALTHY\n[exit 0]", 0)
-        if "FORGE_VERIFIER_NAMESPACE=" in code:
+                "RSIAGENT_VERIFIER_NAMESPACE_HEALTHY\n[exit 0]", 0)
+        if "RSIAGENT_VERIFIER_NAMESPACE=" in code:
             if self.fail_preflight:
                 return _runtime_trace(
                     "sudo: permission denied\n[exit 1]", 1,
                     infra_fail=False)
             return _runtime_trace(
-                "FORGE_VERIFIER_NAMESPACE=43210:1000:1000\n[exit 0]", 0)
+                "RSIAGENT_VERIFIER_NAMESPACE=43210:1000:1000\n[exit 0]", 0)
         match = re.search(
-            r"__FORGE_VERIFIER_(?:SANDBOX|MIRROR)_READY_[0-9a-f]+__", code)
+            r"__RSIAGENT_VERIFIER_(?:SANDBOX|MIRROR)_READY_[0-9a-f]+__", code)
         if match:
             return _runtime_trace(
                 match.group(0) + "\n" + self.program_output + "\n[exit 0]", 0)
@@ -118,15 +118,15 @@ def test_effect_sandbox_accepts_ready_token_preserved_outside_binary_context():
     class ExternalizedVM(_RecordingVM):
         def run_script(self, lang, code, timeout=600, cap=0,
                        allow_staging_fallback=False):
-            if "FORGE_VERIFIER_NAMESPACE=" in code:
+            if "RSIAGENT_VERIFIER_NAMESPACE=" in code:
                 return super().run_script(
                     lang, code, timeout=timeout, cap=cap,
                     allow_staging_fallback=allow_staging_fallback)
             match = re.search(
-                r"__FORGE_VERIFIER_SANDBOX_READY_[0-9a-f]+__", code)
+                r"__RSIAGENT_VERIFIER_SANDBOX_READY_[0-9a-f]+__", code)
             assert match is not None
             return _runtime_trace(
-                "[FORGE NON-UTF8 PROGRAM OUTPUT — EXACT BASE64]\n[exit 0]",
+                "[RSIAGENT NON-UTF8 PROGRAM OUTPUT — EXACT BASE64]\n[exit 0]",
                 0,
                 context_stdout=(match.group(0)
                                 + "\n[PROGRAM OUTPUT EXTERNALIZED]\n[exit 0]"))
@@ -156,8 +156,8 @@ def test_model_stdout_truncation_cannot_erase_trusted_readiness(
     wrapper = vm.scripts[-1]["code"]
     # Replace only the privilege drop/guest command; execute the actual
     # generated pipe and shell error behavior without requiring portable sudo.
-    pipeline = re.search(r"    set -o pipefail\n(.*?)\n  ' forge-verifier",
-                         wrapper, re.S).group(0).split("\n  ' forge-verifier")[0]
+    pipeline = re.search(r"    set -o pipefail\n(.*?)\n  ' rsiagent-verifier",
+                         wrapper, re.S).group(0).split("\n  ' rsiagent-verifier")[0]
     program = tmp_path / "truncate.py"
     program.write_text(
         "import os,sys\n"
@@ -245,7 +245,7 @@ def test_rollback_mirror_sees_live_namespaces_and_rolls_back(monkeypatch):
     assert trace.exit_code == 0 and not trace.infra_fail
     assert transactions[0].begun and transactions[0].rolled_back
     wrapper = vm.scripts[-2]["code"]
-    assert "__FORGE_VERIFIER_MIRROR_READY_" in wrapper
+    assert "__RSIAGENT_VERIFIER_MIRROR_READY_" in wrapper
     assert "nsenter --target 43210 --mount" in wrapper
     assert "DISPLAY=:0" in wrapper
     assert "DBUS_SESSION_BUS_ADDRESS" in wrapper
@@ -325,12 +325,12 @@ def test_qemu_transaction_restores_browser_listeners_present_at_checkpoint(
     from env import qemu_rollback
 
     responses = iter([
-        "FORGE_BROWSER_LISTENERS_READY",
+        "RSIAGENT_BROWSER_LISTENERS_READY",
         # rollback(): a channel flap, missing listeners, then two ready probes.
         "[channel error: temporary guest controller outage]",
-        "FORGE_BROWSER_LISTENERS_ABSENT",
-        "FORGE_BROWSER_LISTENERS_READY",
-        "FORGE_BROWSER_LISTENERS_READY",
+        "RSIAGENT_BROWSER_LISTENERS_ABSENT",
+        "RSIAGENT_BROWSER_LISTENERS_READY",
+        "RSIAGENT_BROWSER_LISTENERS_READY",
     ])
     monkeypatch.setattr(qemu_rollback.time, "sleep", lambda _seconds: None)
 
@@ -392,7 +392,7 @@ def test_qemu_transaction_does_not_require_browser_absent_at_checkpoint():
 
         @staticmethod
         def run_command(*_args, **_kwargs):
-            return "FORGE_BROWSER_LISTENERS_ABSENT"
+            return "RSIAGENT_BROWSER_LISTENERS_ABSENT"
 
         @staticmethod
         def wait_for_controller(**_kwargs):
@@ -415,7 +415,7 @@ def test_agentic_executor_uses_separate_tmpfs_for_persistent_scratch():
     preflight = vm.scripts[0]["code"]
     wrapper = vm.scripts[1]["code"]
     keeper = _decoded_shell_payload(preflight, "keeper_payload")
-    assert executor.workspace.startswith("/mnt/forge_verifier_")
+    assert executor.workspace.startswith("/mnt/rsiagent_verifier_")
     assert "mount -t tmpfs" in keeper
     assert "nosuid,nodev" in keeper
     assert "install -d -m 0000 -o root -g root" in preflight
@@ -424,7 +424,7 @@ def test_agentic_executor_uses_separate_tmpfs_for_persistent_scratch():
     assert 'findmnt -T "$1"' in wrapper
     # A distinct tmpfs makes hard links back into the candidate filesystem fail
     # with EXDEV; a writable bind directory on the candidate filesystem would not.
-    assert "forge-verifier-scratch" in keeper
+    assert "rsiagent-verifier-scratch" in keeper
 
 
 def test_unified_verifier_mechanically_masks_actor_memory():
@@ -480,7 +480,7 @@ def test_verifier_private_scratch_can_archive_and_restore_without_size_cap():
 
         def fetch_file(self, path, max_bytes=None):
             assert max_bytes is None
-            assert path.startswith("/tmp/forge_verifier_export_")
+            assert path.startswith("/tmp/rsiagent_verifier_export_")
             assert path.endswith(".tar")
             return b"lossless-private-scratch-archive", ""
 
@@ -503,11 +503,11 @@ def test_verifier_private_scratch_can_archive_and_restore_without_size_cap():
 
     assert trace.exit_code == 0
     assert second_vm.pushed[0][0].startswith(
-        "/tmp/forge_verifier_restore_")
+        "/tmp/rsiagent_verifier_restore_")
     assert second_vm.pushed[0][0].endswith(".tar")
     assert second_vm.pushed[0][1] == b"lossless-private-scratch-archive"
-    assert "/tmp/forge_verifier_export_" in export_program
-    assert first.workspace + "/.forge_export.tar" not in export_program
+    assert "/tmp/rsiagent_verifier_export_" in export_program
+    assert first.workspace + "/.rsiagent_export.tar" not in export_program
     assert all(call["cap"] == 0 for call in second_vm.scripts)
 
 
@@ -521,12 +521,12 @@ def test_verifier_export_falls_back_to_dev_shm_after_guest_root_is_read_only():
 
         def run_script(self, lang, code, timeout=600, cap=0,
                        allow_staging_fallback=False):
-            if "FORGE_VERIFIER_NAMESPACE=" not in code:
+            if "RSIAGENT_VERIFIER_NAMESPACE=" not in code:
                 try:
                     payload = _decoded_shell_payload(code)
                 except AssertionError:
                     payload = ""
-                if "/tmp/forge_verifier_export_" in payload:
+                if "/tmp/rsiagent_verifier_export_" in payload:
                     self.scripts.append({
                         "lang": lang, "code": code, "timeout": timeout,
                         "cap": cap,
@@ -534,14 +534,14 @@ def test_verifier_export_falls_back_to_dev_shm_after_guest_root_is_read_only():
                     })
                     return _runtime_trace(
                         "OSError: [Errno 30] Read-only file system: "
-                        "'/tmp/forge_verifier_export_test.tar'\n[exit 1]", 1)
+                        "'/tmp/rsiagent_verifier_export_test.tar'\n[exit 1]", 1)
             return super().run_script(
                 lang, code, timeout=timeout, cap=cap,
                 allow_staging_fallback=allow_staging_fallback)
 
         def fetch_file(self, path, max_bytes=None):
             self.fetched.append((path, max_bytes))
-            assert path.startswith("/dev/shm/forge_verifier_export_")
+            assert path.startswith("/dev/shm/rsiagent_verifier_export_")
             assert max_bytes is None
             return b"lossless-emergency-archive", ""
 
@@ -556,14 +556,14 @@ def test_verifier_export_falls_back_to_dev_shm_after_guest_root_is_read_only():
         _decoded_shell_payload(call["code"])
         for call in vm.scripts
         if re.search(r"(?m)^payload='[A-Za-z0-9+/=]+'$", call["code"])
-        and "forge_verifier_export_" in _decoded_shell_payload(call["code"])
+        and "rsiagent_verifier_export_" in _decoded_shell_payload(call["code"])
     ]
-    assert any("/tmp/forge_verifier_export_" in p for p in export_payloads)
-    assert any("/dev/shm/forge_verifier_export_" in p for p in export_payloads)
+    assert any("/tmp/rsiagent_verifier_export_" in p for p in export_payloads)
+    assert any("/dev/shm/rsiagent_verifier_export_" in p for p in export_payloads)
     assert all(
-        "/dev/shm/forge_verifier_host_" in call["code"]
+        "/dev/shm/rsiagent_verifier_host_" in call["code"]
         for call in vm.scripts
-        if "forge_verifier_export_" in call["code"])
+        if "rsiagent_verifier_export_" in call["code"])
 
 
 def test_agentic_executor_transports_observations_losslessly():
@@ -807,8 +807,8 @@ def test_verifier_document_look_routes_renderer_into_isolated_scratch(
     def fake_fetch_look_image(render_vm, path):
         observed["path"] = path
         observed["output"] = render_vm.run_command(
-            "rm -rf /tmp/forge_render; mkdir -p /tmp/forge_render; "
-            "printf /tmp/forge_render/page.png")
+            "rm -rf /tmp/rsiagent_render; mkdir -p /tmp/rsiagent_render; "
+            "printf /tmp/rsiagent_render/page.png")
         return b"pixels", ""
 
     monkeypatch.setattr(
@@ -820,7 +820,7 @@ def test_verifier_document_look_routes_renderer_into_isolated_scratch(
     wrapper = vm.scripts[-1]["code"]
     payload = re.search(r"^payload='([^']+)'$", wrapper, re.MULTILINE).group(1)
     render_program = base64.b64decode(payload).decode()
-    assert "/tmp/forge_render" not in render_program
+    assert "/tmp/rsiagent_render" not in render_program
     assert executor.workspace + "/look_render" in render_program
     assert "--net" in wrapper and "remount,bind,ro" in wrapper
 
@@ -836,7 +836,7 @@ def test_verifier_private_scratch_look_uses_namespace_bridge_not_global_resolver
 
         def fetch_file(self, path, max_bytes=None):
             self.fetched.append((path, max_bytes))
-            assert path.startswith("/tmp/forge_verifier_fetch_")
+            assert path.startswith("/tmp/rsiagent_verifier_fetch_")
             assert path.endswith(".bin")
             return b"private pixels", ""
 
@@ -862,7 +862,7 @@ def test_verifier_private_scratch_look_uses_namespace_bridge_not_global_resolver
     assert "resolved = source.resolve(strict=True)" in bridge_program
     assert "root not in resolved.parents" in bridge_program
     assert any(
-        "rm -f -- /tmp/forge_verifier_fetch_" in call["command"]
+        "rm -f -- /tmp/rsiagent_verifier_fetch_" in call["command"]
         for call in vm.commands)
 
 
@@ -875,7 +875,7 @@ def test_verifier_screen_look_uses_only_trusted_capture_and_scratch(monkeypatch)
     def fake_fetch_look_image(passed_vm, path):
         observed.update(vm=passed_vm, path=path)
         observed["output"] = passed_vm.run_command(
-            "mkdir -p /tmp/forge_render; printf /tmp/forge_render/screen.png")
+            "mkdir -p /tmp/rsiagent_render; printf /tmp/rsiagent_render/screen.png")
         return b"screen pixels", ""
 
     monkeypatch.setattr(
@@ -886,10 +886,10 @@ def test_verifier_screen_look_uses_only_trusted_capture_and_scratch(monkeypatch)
     assert data == b"screen pixels" and reason == ""
     assert observed["path"] == "screen:"
     assert observed["vm"] is not vm
-    assert "/tmp/forge_verifier_screen_" in vm.commands[-1]["command"]
+    assert "/tmp/rsiagent_verifier_screen_" in vm.commands[-1]["command"]
     assert "rm -rf --" in vm.commands[-1]["command"]
     assert executor.workspace not in vm.commands[-1]["command"]
-    assert "/tmp/forge_render" not in vm.commands[-1]["command"]
+    assert "/tmp/rsiagent_render" not in vm.commands[-1]["command"]
     # Workspace setup is trusted; no model-authored Program ran for the capture.
     assert len(vm.scripts) == 1
 

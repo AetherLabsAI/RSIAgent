@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from osworld_actor_boundary import (
+from benchmarks.osworld.actor_boundary import (
     _encoded_paths_payload,
     _scan_records,
     quarantine_actor_visible_evaluators,
@@ -51,7 +51,7 @@ def test_detected_evaluator_is_quarantined_and_boundary_is_rechecked():
                 return Trace(stdout=record, exit_code=0)
             if len(self.calls) == 2:
                 return Trace(
-                    stdout=".\n__FORGE_EVALUATOR_QUARANTINE_READY__\n[exit 0]",
+                    stdout=".\n__RSIAGENT_EVALUATOR_QUARANTINE_READY__\n[exit 0]",
                     exit_code=0)
             return Trace(stdout="[exit 0]", exit_code=0)
 
@@ -62,13 +62,13 @@ def test_detected_evaluator_is_quarantined_and_boundary_is_rechecked():
     assert len(vm.calls) == 3
     assert vm.calls[0][0] == vm.calls[2][0] == "python"
     assert "desktop_env.task_base" in vm.calls[0][1]
-    assert "/root/.forge_actor_evaluator_quarantine" in vm.calls[1][1]
+    assert "/root/.rsiagent_actor_evaluator_quarantine" in vm.calls[1][1]
     assert all(call[2] == 0 for call in vm.calls)
 
 
 def test_self_evolving_runner_isolates_before_s0_and_orientation():
     source = (Path(__file__).resolve().parents[1] /
-              "run_self_evolving.py").read_text(encoding="utf-8")
+              "run_phase2.py").read_text(encoding="utf-8")
     isolation = source.index("quarantine_actor_visible_evaluators(vm)")
     surface_s0 = source.index("baseline = _snapshot", isolation)
     orientation = source.index("def verifier_orient(", surface_s0)

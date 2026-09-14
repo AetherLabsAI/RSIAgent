@@ -1,6 +1,6 @@
 """Minimal OpenRouter client with robust JSON and durable multimodal history.
 
-Forge remains a code-as-policy agent. Native Look attachments are transported as
+RSIAgent remains a code-as-policy agent. Native Look attachments are transported as
 exact image bytes and retained losslessly in the internal transcript so later turns
 and recovered processes receive the same observations. The key comes from
 ``$OPENROUTER_API_KEY`` or a ``.env`` file.
@@ -45,7 +45,7 @@ _PROVIDER_COUNTS = {}              # model -> provider -> successful response co
 # removes this private field and reconstructs an ordinary OpenAI multimodal message at
 # the wire boundary. Transcripts therefore remain JSON-safe and lossless across turns
 # and process recovery without asking the agent to summarize what it saw.
-DURABLE_IMAGES_FIELD = "_forge_images"
+DURABLE_IMAGES_FIELD = "_rsiagent_images"
 
 
 def _image_mime(data: bytes) -> str:
@@ -310,7 +310,7 @@ def chat(model: str, system: str, user: str,
     if reasoning_effort:
         extra_body["reasoning"] = ({"enabled": False} if reasoning_effort == "none"
                                    else {"effort": reasoning_effort})  # effort inert on M3
-    elif reasoning_max_tokens:                     # v37 (wenyi: MAX reasoning, accuracy-only):
+    elif reasoning_max_tokens:                     # v37 (: MAX reasoning, accuracy-only):
         extra_body["reasoning"] = {"max_tokens": int(reasoning_max_tokens)}
         # k3: reasoning is MANDATORY (enabled:false -> 400); depth IS tunable — this caps
         # thinking high instead of disabling. 0 = omit (GLM/M3 requests byte-identical).
@@ -329,7 +329,7 @@ def chat(model: str, system: str, user: str,
         }
     if extra_body:
         kwargs["extra_body"] = extra_body
-    log = logging.getLogger("forge.llm")
+    log = logging.getLogger("rsiagent.llm")
     resp = None
     for attempt in range(4):                       # robust to TRANSIENT API errors (non-JSON body,
         try:                                       # 5xx, rate-limit): a flaky response must not kill a run
@@ -390,7 +390,7 @@ def chat(model: str, system: str, user: str,
     txt = choice.message.content or ""
     native_calls = getattr(choice.message, "tool_calls", None) or []
     if native_calls:
-        # Forge requests text JSON actions, not native provider tools. Surface this
+        # RSIAgent requests text JSON actions, not native provider tools. Surface this
         # protocol drift explicitly instead of misdiagnosing an empty content field
         # as an ordinary decoder dry turn. Never execute an unsolicited native call.
         names = []

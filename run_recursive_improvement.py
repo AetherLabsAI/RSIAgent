@@ -21,25 +21,22 @@ import sys
 import time
 from typing import Any
 
-from config.runtime_paths import resolve_forge_root, resolve_osworld_root
+from config.runtime_paths import resolve_root, resolve_osworld_root
 from core.self_evolving_loop import DEFAULT_PHASE2_STOP_POLICY, Phase2StopPolicy
-from explore.e15_loop import _atomic_install_memory, _manifest, _read_memory_tree
-from explore.e15_v12_loop import _memory_tree_sha256
+from explore.practice_loop import _atomic_install_memory, _manifest, _read_memory_tree
+from explore.target_learning import _memory_tree_sha256
 
 
-FORGE_ROOT = resolve_forge_root()
-OSWORLD_ROOT = resolve_osworld_root(forge_root=FORGE_ROOT)
-RESULTS_ROOT = FORGE_ROOT / "results" / "recursive_improvement"
+RSIAGENT_ROOT = resolve_root()
+OSWORLD_ROOT = resolve_osworld_root(repo_root=RSIAGENT_ROOT)
+RESULTS_ROOT = RSIAGENT_ROOT / "results" / "recursive_improvement"
 TASKS = tuple(f"task_{index:03d}" for index in range(1, 109))
 TASK_RELEASES = {
-    "osworld-v2-2026.06.24": frozenset({"task_048", "task_082"}),
     "osworld-v2-2026.08.08": frozenset(),
 }
 BENCHMARK_PROVENANCE_PROFILES = {
-    "osworld-v2-2026.06.24": (
-        FORGE_ROOT / "config/osworld_v2_0624_runtime_0808_compat.lock.json"),
     "osworld-v2-2026.08.08": (
-        FORGE_ROOT / "config/osworld_v2_0808_glm53_k3_agentic_baseline.lock.json"),
+        RSIAGENT_ROOT / "config/osworld/baseline.lock.json"),
 }
 _SAFE_NAME = re.compile(r"[A-Za-z0-9_.-]+\Z")
 _ACK = {
@@ -84,7 +81,7 @@ def _resolve_file(value: Any, *, label: str) -> Path:
     if not isinstance(value, str) or not value.strip():
         raise ProtocolError(f"{label} must name one repository file")
     raw = Path(value).expanduser()
-    path = raw if raw.is_absolute() else FORGE_ROOT / raw
+    path = raw if raw.is_absolute() else RSIAGENT_ROOT / raw
     try:
         path = path.resolve(strict=True)
     except OSError as exc:
@@ -313,7 +310,7 @@ def _run(command: list[str], *, run_root: Path, phase: str,
          task: str = "") -> None:
     _append_event(run_root, "SUBPROCESS_STARTED", phase=phase, task=task,
                   argv=command)
-    completed = subprocess.run(command, cwd=FORGE_ROOT, check=False)
+    completed = subprocess.run(command, cwd=RSIAGENT_ROOT, check=False)
     _append_event(
         run_root, "SUBPROCESS_COMPLETED", phase=phase, task=task,
         returncode=completed.returncode)
@@ -356,7 +353,7 @@ def _configure_phase3_evaluator(
     if set(lock.get("excluded_tasks") or ()) != excluded:
         raise ProtocolError("Phase-3 excluded task set drifted")
     actor = lock.get("actor_agent") or {}
-    if (actor.get("config") != str(config_path.relative_to(FORGE_ROOT))
+    if (actor.get("config") != str(config_path.relative_to(RSIAGENT_ROOT))
             or actor.get("sha256") != _sha256(config_path)
             or actor.get("model") != "z-ai/glm-5.3"):
         raise ProtocolError("Phase-3 Actor Agent config is not lock-bound")
@@ -368,13 +365,13 @@ def _configure_phase3_evaluator(
 
     from config.settings import load
     from config.runtime_paths import normalize_verifier_config_paths
-    from run_unified import (
+    from benchmarks.osworld.runtime import (
         _configure_sealed_evaluator,
         _probe_sealed_evaluator_transport,
     )
 
     cfg = load(str(config_path))
-    normalize_verifier_config_paths(cfg, FORGE_ROOT)
+    normalize_verifier_config_paths(cfg, RSIAGENT_ROOT)
     sealed = _configure_sealed_evaluator(lock_path, cfg, config_path)
     sealed["transport_preflight"] = _probe_sealed_evaluator_transport()
     return sealed
@@ -392,7 +389,7 @@ def execute_phase1(spec: dict[str, Any], *, resume_completed_boundary=False) -> 
         return result
     cfg = resolved["configs"]["phase1"]
     command = [
-        sys.executable, str(FORGE_ROOT / "run_phase1_exploration.py"),
+        sys.executable, str(RSIAGENT_ROOT / "run_phase1_exploration.py"),
         "--run-name", spec["run_name"],
         "--distribution-file", str(resolved["distribution"]),
         "--project-budget", str(spec["phase1"]["project_budget"]),
@@ -444,8 +441,8 @@ def execute_phase2(spec: dict[str, Any]) -> dict[str, Any]:
                        / f"attempt_{seed:04d}" / "result.json")
         if not result_path.is_file():
             command = [
-                sys.executable, str(FORGE_ROOT / "run_self_evolving.py"), task,
-                "--phase2-training", "--protocol-run", spec["run_name"],
+                sys.executable, str(RSIAGENT_ROOT / "run_phase2.py"), task,
+                 "--protocol-run", spec["run_name"],
                 "--seed", str(seed), "--initial-memory", str(memory_path),
                 "--phase2-stop-policy", stop_policy,
                 "--target-config", str(cfg["target_config"]),
@@ -559,11 +556,11 @@ def execute_phase3(spec: dict[str, Any]) -> dict[str, Any]:
     task_results = []
     for position, task in enumerate(tasks):
         seed = int(spec["phase3"]["seed"]) + position
-        result_path = (FORGE_ROOT / "results" / task
+        result_path = (RSIAGENT_ROOT / "results" / task
                        / f"seed{seed}_{tag}" / "result.json")
         if not result_path.is_file():
             command = [
-                sys.executable, str(FORGE_ROOT / "run_task.py"), task,
+                sys.executable, str(RSIAGENT_ROOT / "run_task.py"), task,
                 "--seed", str(seed), "--tag", tag,
                 "--config", str(cfg), "--memory-dir", str(frozen),
             ]
