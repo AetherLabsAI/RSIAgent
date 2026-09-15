@@ -263,17 +263,17 @@ experiments with the pinned configuration.
 
 ## Citation
 
-If you use RSIAgent, please cite the manuscript:
+If you use RSIAgent, please cite the [arXiv preprint](https://arxiv.org/abs/2609.15364):
 
 ```bibtex
-@unpublished{zhu2026rsiagent,
-  title = {RSIAgent: Autonomous Exploration for Recursive
-           Self-improvement in New Environments},
-  author = {Zhu, Sibo and Fan, Shicheng and Wang, Xinyue
-            and Wu, Wenyi and Zhou, Kun and Huang, Biwei},
-  year = {2026},
-  note = {Technical report},
-  url = {https://github.com/AetherLabsAI/RSIAgent/blob/main/docs/RSIAgent.pdf}
+@misc{zhu2026rsiagentautonomousexplorationrecursive,
+      title={RSIAgent: Autonomous Exploration for Recursive Self-improvement in New Environments},
+      author={Sibo Zhu and Shicheng Fan and Xinyue Wang and Wenyi Wu and Kun Zhou and Biwei Huang},
+      year={2026},
+      eprint={2609.15364},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2609.15364},
 }
 ```
 
