@@ -6,7 +6,13 @@
 [![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
-[Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
+[News](#news) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
+
+## News
+
+- **September 2026** — RSIAgent was featured as a **headline story** in [机器之心](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ).
+
+## Overview
 
 RSIAgent is a **training-free framework for recursive self-improvement** in new
 digital environments. It coordinates the Curriculum Agent, Actor Agent, and
