@@ -2,7 +2,7 @@
 
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
-[![Paper: PDF](https://img.shields.io/badge/Paper-PDF-b31b1b?style=flat)](docs/RSIAgent.pdf)
+[![Paper: arXiv](https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat)](https://arxiv.org/pdf/2609.15364)
 [![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 

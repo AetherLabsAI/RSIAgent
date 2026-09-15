@@ -4,10 +4,11 @@ The README describes **RSIAgent: Autonomous Exploration for Recursive
 Self-improvement in New Environments**, by Sibo Zhu, Shicheng Fan, Xinyue Wang,
 Wenyi Wu, Kun Zhou, and Biwei Huang.
 
-Read the [public paper PDF](RSIAgent.pdf). For citations, use the
+Read the [paper on arXiv](https://arxiv.org/pdf/2609.15364), or download the
+[author-supplied PDF mirror](RSIAgent.pdf). For citations, use the
 [arXiv preprint, arXiv:2609.15364](https://arxiv.org/abs/2609.15364).
 
-The 50-page PDF was supplied by the authors on September 15, 2026, and is
+The 50-page PDF mirror was supplied by the authors on September 15, 2026, and is
 distributed byte-for-byte as received. It preserves the original pdfTeX output;
 no recompilation or formatting changes were made for GitHub.
 
