@@ -7,11 +7,9 @@ Wenyi Wu, Kun Zhou, and Biwei Huang.
 Read the [public paper PDF](RSIAgent.pdf). For citations, use the
 [arXiv preprint, arXiv:2609.15364](https://arxiv.org/abs/2609.15364).
 
-The PDF was exported on September 15, 2026, from manuscript revision
-`0234fa06a107b0384b5f480615f233faee22ae37`, verified against the remote Overleaf
-head on that date. It is a locally compiled, 49-page technical-report snapshot.
-The export used Tectonic with a build-only package-option adjustment for `xcolor`;
-the manuscript text and Overleaf source were not changed.
+The 50-page PDF was supplied by the authors on September 15, 2026, and is
+distributed byte-for-byte as received. It preserves the original pdfTeX output;
+no recompilation or formatting changes were made for GitHub.
 
 The method text and framework figure were read from a clean local checkout at
 revision `6e36cb432ddda99f8cc60a8af74d72b1a9b693d5` on September 13, 2026.
