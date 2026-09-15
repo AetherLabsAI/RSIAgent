@@ -8,9 +8,20 @@
 
 [News](#news) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
 
-## News
+<a id="news"></a>
 
-- **September 2026** — RSIAgent was featured as a **headline story** in [机器之心](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ).
+## 📰 News & Highlights
+
+> **🔥 Headline feature in 机器之心 · September 2026**
+>
+> **Open-source models surpass GPT-6 Astra on challenging computer-use benchmarks.**
+> Discover how RSIAgent turns autonomous exploration into reusable experience—without updating model weights.
+>
+> [![WeChat article reads: 38K+](https://img.shields.io/badge/WeChat_reads-38K%2B-2E7D32?style=flat-square&logo=wechat&logoColor=white)](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ)
+>
+> [**📖 Read the feature →**](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ) · [**🎬 Watch the case studies →**](https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4)
+>
+> <sub>Read-count snapshot: September 15, 2026.</sub>
 
 ## Overview
 
