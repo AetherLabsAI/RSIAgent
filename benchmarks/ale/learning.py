@@ -18,7 +18,7 @@ def phase1(spec):
         spec["practice_sandboxes"], practice=True, reset_endpoint=spec["reset_endpoint"]
     )
     try:
-        hooks = hooks_for(pool, spec["corpus"])
+        hooks = hooks_for(pool, spec["corpus"], spec.get("audit_public_task"))
         result = evolve_parallel_phase1(
             root=str(root),
             target_direction=spec["instruction"],
@@ -89,7 +89,7 @@ def phase2(spec):
             practice=True,
             reset_endpoint=spec["reset_endpoint"],
         )
-        hooks = hooks_for(practice_pool, spec["corpus"])
+        hooks = hooks_for(practice_pool, spec["corpus"], spec.get("audit_public_task"))
         curriculum = UnifiedCurriculumSession()
         active_memory = root / "memory"
         learning_updates = 0

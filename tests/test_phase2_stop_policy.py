@@ -75,6 +75,8 @@ def test_policy_reaches_child_result_and_protocol_lock(
         protocol._write_json_atomic(result_path, result)
 
     monkeypatch.setattr(protocol, "_run", launch)
+    monkeypatch.setattr(protocol, "_configure_release_environment",
+                        lambda *_args, **_kwargs: {})
     completed = protocol.execute_phase2(spec)
     assert completed["phase2_stop_policy"] == policy
     assert completed["task_results"][0]["stop_policy"] == policy

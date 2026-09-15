@@ -81,6 +81,31 @@ def test_example_declares_target_conditioned_phases_and_budget_checkpoints():
     assert "verifier_control_config" in lock["configs"]["phase1"]
 
 
+def test_preflight_and_child_share_release_setup_without_mutating_parent(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(protocol, "RESULTS_ROOT", tmp_path / "results")
+    spec = protocol.load_protocol(_spec(tmp_path))
+    before = dict(protocol.os.environ)
+    report = protocol.preflight(spec, "phase1")
+    release = report["release_environment"]
+    assert release["user_simulator"]["model"] == "openai/gpt-4o"
+    assert release["task_assets"]["mode"] == "release_bound_local_snapshot"
+    assert dict(protocol.os.environ) == before
+
+    def launch(_argv, **kwargs):
+        environment = kwargs["environment"]
+        assert environment["OSWORLD_USER_SIM_MODEL"] == "openai/gpt-4o"
+        assert environment["WEBSITE_HOST_SUFFIX"] == release["website_host_suffix"]
+        assert environment["OSWORLD_FILE_BASE_URL"] == release["task_assets"]["path"]
+        protocol._write_json_atomic(
+            spec["_resolved"]["run_root"] / "phase1/result.json", {
+                "status": "budget_exhausted", "official_evaluator_calls": 0})
+
+    monkeypatch.setattr(protocol, "_run", launch)
+    protocol.execute_phase1(spec)
+    assert dict(protocol.os.environ) == before
+
+
 def test_parallel_phase1_is_agent_authored_not_a_static_search_menu(tmp_path):
     value = json.loads(EXAMPLE.read_text(encoding="utf-8"))
     value["run_name"] = "parallel_wave_unit"

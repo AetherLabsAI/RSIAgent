@@ -21,6 +21,7 @@ import sys
 import time
 from typing import Any
 
+from config.benchmark_runtime import configure_user_simulator
 from config.runtime_paths import resolve_root, resolve_osworld_root
 from core.self_evolving_loop import DEFAULT_PHASE2_STOP_POLICY, Phase2StopPolicy
 from explore.practice_loop import _atomic_install_memory, _manifest, _read_memory_tree
@@ -238,7 +239,8 @@ def _memory_record(path: Path) -> dict[str, Any]:
     }
 
 
-def _configure_release_environment(spec: dict[str, Any]) -> dict[str, Any]:
+def _configure_release_environment(
+        spec: dict[str, Any], *, environment: dict[str, str]) -> dict[str, Any]:
     """Bind task setup to the protocol's benchmark release before any phase."""
 
     release = spec["task_release"]
@@ -251,7 +253,13 @@ def _configure_release_environment(spec: dict[str, Any]) -> dict[str, Any]:
     website = evaluator.get("website_host_suffix")
     if not isinstance(website, str) or not website:
         raise ProtocolError("Phase-3 lock lacks a website release binding")
-    os.environ["WEBSITE_HOST_SUFFIX"] = website
+    environment["WEBSITE_HOST_SUFFIX"] = website
+    user_simulator = configure_user_simulator(
+        lock.get("user_simulator"), lock_path=lock_path,
+        repo_root=RSIAGENT_ROOT, environment=environment,
+        # Resolve credentials only after the child's existing OSWorld dotenv
+        # setup; loading shared keys here would change Actor key precedence.
+        load_credential=False)
 
     assets = lock.get("task_assets")
     asset_record: dict[str, Any] = {"mode": "inherited"}
@@ -279,7 +287,7 @@ def _configure_release_environment(spec: dict[str, Any]) -> dict[str, Any]:
         if mismatch:
             raise ProtocolError(
                 f"prepared task assets conflict with the protocol: {mismatch}")
-        os.environ["OSWORLD_FILE_BASE_URL"] = str(root)
+        environment["OSWORLD_FILE_BASE_URL"] = str(root)
         asset_record = {
             "mode": "release_bound_local_snapshot",
             "path": str(root),
@@ -290,6 +298,7 @@ def _configure_release_environment(spec: dict[str, Any]) -> dict[str, Any]:
         "task_release": release,
         "website_host_suffix": website,
         "task_assets": asset_record,
+        "user_simulator": user_simulator,
     }
 
 
@@ -307,10 +316,11 @@ def _append_event(run_root: Path, event: str, **payload: Any) -> None:
 
 
 def _run(command: list[str], *, run_root: Path, phase: str,
-         task: str = "") -> None:
+         task: str = "", environment: dict[str, str] | None = None) -> None:
     _append_event(run_root, "SUBPROCESS_STARTED", phase=phase, task=task,
                   argv=command)
-    completed = subprocess.run(command, cwd=RSIAGENT_ROOT, check=False)
+    completed = subprocess.run(
+        command, cwd=RSIAGENT_ROOT, check=False, env=environment)
     _append_event(
         run_root, "SUBPROCESS_COMPLETED", phase=phase, task=task,
         returncode=completed.returncode)
@@ -410,7 +420,9 @@ def execute_phase1(spec: dict[str, Any], *, resume_completed_boundary=False) -> 
         command.insert(-2, "--target-query-conditioned")
     if resume_completed_boundary:
         command.insert(-2, "--resume-completed-boundary")
-    _run(command, run_root=run_root, phase="phase1")
+    environment = dict(os.environ)
+    _configure_release_environment(spec, environment=environment)
+    _run(command, run_root=run_root, phase="phase1", environment=environment)
     result = _read_object(phase1_result)
     if result.get("official_evaluator_calls") != 0:
         raise ProtocolError("Phase 1 recorded an evaluator call")
@@ -453,7 +465,10 @@ def execute_phase2(spec: dict[str, Any]) -> dict[str, Any]:
                 "--benchmark-profile", str(benchmark_profile),
                 "--execute", "RUN-PHASE2-FAILURE-CONDITIONED-PRACTICE",
             ]
-            _run(command, run_root=run_root, phase="phase2", task=task)
+            environment = dict(os.environ)
+            _configure_release_environment(spec, environment=environment)
+            _run(command, run_root=run_root, phase="phase2", task=task,
+                 environment=environment)
         result = _read_object(result_path)
         _validate_phase2_terminal(result, stop_policy=stop_policy, task=task)
         if (result.get("official_evaluator_calls") != 0
@@ -564,7 +579,10 @@ def execute_phase3(spec: dict[str, Any]) -> dict[str, Any]:
                 "--seed", str(seed), "--tag", tag,
                 "--config", str(cfg), "--memory-dir", str(frozen),
             ]
-            _run(command, run_root=run_root, phase="phase3", task=task)
+            environment = dict(os.environ)
+            _configure_release_environment(spec, environment=environment)
+            _run(command, run_root=run_root, phase="phase3", task=task,
+                 environment=environment)
         result = _read_object(result_path)
         after = _memory_record(frozen)
         if after["tree_sha256"] != frozen_record["tree_sha256"]:
@@ -629,7 +647,10 @@ def preflight(spec: dict[str, Any], phase: str) -> dict[str, Any]:
             blockers.append("phase3.held_out_tasks is empty")
         if not (resolved["run_root"] / "phase2/result.json").is_file():
             blockers.append("Phase 2 result is not present")
-    release_environment = _configure_release_environment(spec)
+    # A preflight must not leave this study's user route in the process for a
+    # later study. Execution passes its own environment to each child instead.
+    release_environment = _configure_release_environment(
+        spec, environment=dict(os.environ))
     return {
         "status": "ready" if not blockers else "configuration_required",
         "blockers": blockers,

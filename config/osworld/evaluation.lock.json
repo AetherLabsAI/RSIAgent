@@ -38,6 +38,14 @@
     "forced_full_read": false,
     "privileged_index": false
   },
+  "user_simulator": {
+    "provider": "openai_compatible",
+    "model": "openai/gpt-4o",
+    "base_url": "https://openrouter.ai/api/v1",
+    "api_key_env": "OPENROUTER_API_KEY",
+    "max_tokens": 256,
+    "failure_policy": "abort_infra_invalid_before_official_evaluation"
+  },
   "evaluator": {
     "provider": "openai_compatible",
     "model": "openai/gpt-5.4",

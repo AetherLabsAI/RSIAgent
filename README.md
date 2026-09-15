@@ -88,7 +88,10 @@ consolidation therefore matters alongside the amount of practice.
 | Integration | Pinned release | Public batch |
 | --- | --- | --- |
 | OSWorld-V2 | August 8, 2026 | 108 tasks, Docker/QEMU |
-| Agents' Last Exam (ALE) | `d10fb61a14f9719774c3520c5763068b28ef5546` | 67 Near-term tasks; 64 CPU tasks supported, 3 GPU tasks recorded as pending |
+| Agents' Last Exam (ALE) | `d10fb61a14f9719774c3520c5763068b28ef5546` | 67 Near-term tasks; 64 CPU tasks and 3 completed GPU-task baselines |
+
+All three GPU-task baselines are complete. Chroma Key ran on a Google Cloud
+(GCP) VM using the official ALE Windows image and an NVIDIA L4 vWS GPU.
 
 Only the current runtime is included. Both integrations use the same Actor,
 Verifier, Curriculum, and memory protocol. Benchmark setup and grading remain
@@ -227,7 +230,7 @@ Inspect the cohort, run the supported tasks, and generate a report:
 ```
 
 Use a new `--output` directory for each run. The report contains `tasks.csv` and
-`summary.json`, keeps missing and GPU-pending results explicit, and rejects
+`summary.json`, keeps missing results explicit, and rejects
 duplicate scored attempts.
 
 Both entrypoints run batches directly. Begin with `--concurrency 1`; raise it

@@ -2,8 +2,12 @@
 
 The integration uses the canonical 67-task Near-term cohort at upstream commit
 `d10fb61a14f9719774c3520c5763068b28ef5546`. It supports the 64 CPU tasks through
-Linux and Windows QEMU guests. Three GPU tasks remain `pending_gpu_runner`;
-they are never silently removed from the cohort or scored as zero.
+Linux and Windows QEMU guests. All three GPU-task baselines were completed using
+separately provisioned runners; Chroma Key used the official ALE Windows image
+on a Google Cloud (GCP) VM with an NVIDIA L4 vWS GPU. These completed results are
+included in the reported 67-task aggregate. The bundled QEMU batch launcher still
+requires a separate GPU runner for those tasks; missing results are never scored
+as zero.
 
 ## Install and prepare
 
