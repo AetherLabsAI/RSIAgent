@@ -1082,7 +1082,7 @@ html>body{padding:0}</style>
   let audio=null,sound=false,lastBeat=-1,lastAudioStage=-1;
   let scale=1,pixelRatio=1,viewWidth=W,viewHeight=H;
   const titles=['begin.','change.','again.','become.','RSIAgent'];
-  const captions=['A beginning.','Changing form.','Evolving again.','Becoming something new.','RSIAgent — Always becoming.'];
+  const captions=['A beginning.','Changing form.','Evolving again.','Becoming something new.','RSIAgent — Always evolving.'];
   const noise=document.createElement('canvas');noise.width=192;noise.height=192;
   const nctx=noise.getContext('2d');const nd=nctx.createImageData(192,192);
   let seed=137;
@@ -1174,7 +1174,7 @@ html>body{padding:0}</style>
       ctx.textAlign='left';
       for(const ch of name){ctx.fillText(ch,x,467+18*(1-a));x+=ctx.measureText(ch).width+spacing;}
       ctx.textAlign='center';ctx.font=`italic 400 ${Math.max(36,13/scale)}px Georgia,serif`;
-      ctx.globalAlpha=range(t,17.3,18.35)*.83;ctx.fillText('Always becoming.',640,537);
+      ctx.globalAlpha=range(t,17.3,18.35)*.83;ctx.fillText('Always evolving.',640,537);
       ctx.restore();
     }
   }
