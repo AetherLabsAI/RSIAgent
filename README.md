@@ -3,8 +3,7 @@
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
 [![Paper: Overleaf](https://img.shields.io/badge/Paper-Overleaf-b31b1b?style=flat)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f)
-[![OSWorld: 108 tasks](https://img.shields.io/badge/OSWorld-108_tasks-007ec6?style=flat)](#benchmarks)
-[![ALE: 67 tasks](https://img.shields.io/badge/ALE-67_tasks-6554c0?style=flat)](#benchmarks)
+[![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
 [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
