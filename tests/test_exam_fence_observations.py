@@ -70,6 +70,24 @@ def test_output_still_carries_protected_material(tmp_path, output):
     assert fence.audit_transcripts(str(tmp_path))
 
 
+@pytest.mark.parametrize(("suffix", "kind"), [
+    ("task_011/index.html", "task-id"),
+    ("answer_filename/answer_layout", "constant-tuple"),
+    ("place/the/hidden/reference/answer/in/the/output", "instruction-8gram"),
+])
+def test_observed_path_exception_preserves_other_signals(tmp_path, suffix, kind):
+    output = "/home/user/OSWorld-V2/self_hosted_websites/" + suffix
+    record(tmp_path, output)
+    # Only the path classification is relaxed, even when another signal
+    # appears inside the very same application path.
+    findings = fence.audit_transcripts(str(tmp_path))
+    for filename in ("transcript.json", "trace.txt"):
+        hits = [hit for row in findings if row["file"].endswith(filename)
+                for hit in row["hits"]]
+        assert any(hit["kind"] == kind for hit in hits)
+        assert not any(hit["kind"] == "exam-path" for hit in hits)
+
+
 @pytest.mark.parametrize("code", [
     "cat /home/ubuntu/OSWorld-V2/evaluation_examples/task_class/task_011.py",
     "cd /home/ubuntu/OSWorld-V2; ls",

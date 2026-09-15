@@ -2,6 +2,8 @@
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -178,13 +180,13 @@ def test_conflicting_user_configuration_is_not_silently_replaced(tmp_path):
     assert "synthetic-key" not in str(caught.value)
 
 
-def test_optional_credential_can_load_from_configured_env_file(tmp_path):
+def test_baseline_credential_loads_from_configured_env_file(tmp_path):
     env_file = tmp_path / "runtime.env"
     env_file.write_text("TEST_USER_KEY=synthetic-key\n")
     environment = {"RSIAGENT_ENV_FILE": str(env_file)}
     receipt = configure_user_simulator(
         ROUTE, lock_path=tmp_path / "lock.json", repo_root=tmp_path,
-        environment=environment, require_credential=False)
+        environment=environment)
     assert environment["TEST_USER_KEY"] == "synthetic-key"
     assert "synthetic-key" not in json.dumps(receipt)
 
@@ -195,5 +197,113 @@ def test_incomplete_declared_user_route_remains_an_error(tmp_path, route):
     with pytest.raises(BenchmarkRuntimeError):
         configure_user_simulator(
             route, lock_path=tmp_path / "lock.json", repo_root=tmp_path,
-            environment=environment, require_credential=False)
+            environment=environment, load_credential=False)
     assert environment == {}
+
+
+def initialized_child(tmp_path, monkeypatch, *, module, route=ROUTE,
+                      shell=None, repo_env="", osworld_env=""):
+    """Exercise real child initialization after the pipeline constructs its env."""
+    spec = make_study(tmp_path, monkeypatch, route=route)
+    osworld = tmp_path / "OSWorld-V2"
+    osworld.mkdir()
+    (osworld / ".env").write_text(osworld_env)
+    (tmp_path / ".env").write_text(repo_env)
+    environment = {
+        "PYTHONPATH": str(REPO),
+        "RSIAGENT_ROOT": str(tmp_path),
+        "OSWORLD_ROOT": str(osworld),
+        **(shell or {}),
+    }
+    pipeline._configure_release_environment(spec, environment=environment)
+    result = subprocess.run(
+        [sys.executable, "-c", """
+import importlib, json, os, sys
+from llm.client import _api_key
+importlib.import_module(sys.argv[1])._install_paths()
+name = os.environ.get("OSWORLD_USER_SIM_API_KEY_ENV", "")
+print(json.dumps({
+    "actor_key": _api_key(),
+    "shared_key": os.environ.get("OPENROUTER_API_KEY"),
+    "named_key": os.environ.get(name),
+    "user_key": os.environ.get("OSWORLD_USER_SIM_API_KEY"),
+}))
+""", module],
+        cwd=REPO, env=environment, text=True, capture_output=True, check=True)
+    return environment, json.loads(result.stdout)
+
+
+@pytest.mark.parametrize("module", [
+    "benchmarks.osworld.phase1", "benchmarks.osworld.runtime"])
+@pytest.mark.parametrize("shell_key", [None, "shell-key"])
+def test_real_child_keeps_original_actor_credential_precedence(
+        tmp_path, monkeypatch, module, shell_key):
+    _, child = initialized_child(
+        tmp_path, monkeypatch, module=module,
+        route={**ROUTE, "api_key_env": "OPENROUTER_API_KEY"},
+        shell={"OPENROUTER_API_KEY": shell_key} if shell_key else {},
+        repo_env="OPENROUTER_API_KEY=repo-stale-key\n",
+        osworld_env="OPENROUTER_API_KEY=osworld-working-key\n")
+    expected = shell_key or "osworld-working-key"
+    assert child == {
+        "actor_key": expected, "shared_key": expected,
+        "named_key": expected, "user_key": None}
+
+
+@pytest.mark.parametrize("key_env", ["OPENROUTER_API_KEY", "CUSTOM_USER_KEY"])
+def test_real_runtime_loads_repo_fallback_only_into_user_channel(
+        tmp_path, monkeypatch, key_env):
+    repo_env = "OPENROUTER_API_KEY=repo-actor-key\n"
+    expected = "repo-actor-key"
+    if key_env != "OPENROUTER_API_KEY":
+        repo_env += "CUSTOM_USER_KEY=repo-user-key\n"
+        expected = "repo-user-key"
+    environment, child = initialized_child(
+        tmp_path, monkeypatch, module="benchmarks.osworld.runtime",
+        route={**ROUTE, "api_key_env": key_env}, repo_env=repo_env)
+    assert key_env not in environment
+    assert "OSWORLD_USER_SIM_API_KEY" not in environment
+    assert child == {
+        "actor_key": "repo-actor-key", "shared_key": None,
+        "named_key": None, "user_key": expected}
+
+
+def test_real_runtime_preserves_custom_osworld_user_credential(
+        tmp_path, monkeypatch):
+    _, child = initialized_child(
+        tmp_path, monkeypatch, module="benchmarks.osworld.runtime",
+        repo_env="TEST_USER_KEY=repo-stale-key\n",
+        osworld_env="TEST_USER_KEY=osworld-user-key\nOPENROUTER_API_KEY=actor-key\n")
+    assert child == {
+        "actor_key": "actor-key", "shared_key": "actor-key",
+        "named_key": "osworld-user-key", "user_key": None}
+
+
+def test_real_runtime_keeps_explicit_user_override_without_loading_other_keys(
+        tmp_path, monkeypatch):
+    environment, child = initialized_child(
+        tmp_path, monkeypatch, module="benchmarks.osworld.runtime",
+        shell={"OSWORLD_USER_SIM_API_KEY": "direct-user-key"},
+        repo_env="TEST_USER_KEY=repo-stale-key\nOPENROUTER_API_KEY=actor-key\n")
+    assert "TEST_USER_KEY" not in environment
+    assert child == {
+        "actor_key": "actor-key", "shared_key": None,
+        "named_key": None, "user_key": "direct-user-key"}
+
+
+@pytest.mark.parametrize("route", [None, ROUTE])
+def test_real_runtime_does_not_require_a_user_credential(
+        tmp_path, monkeypatch, route):
+    _, child = initialized_child(
+        tmp_path, monkeypatch, module="benchmarks.osworld.runtime", route=route)
+    assert child == {
+        "actor_key": "", "shared_key": None,
+        "named_key": None, "user_key": None}
+
+
+def test_baseline_user_binding_still_requires_the_declared_credential(tmp_path):
+    environment = {"OSWORLD_USER_SIM_API_KEY": "direct-user-key"}
+    with pytest.raises(BenchmarkRuntimeError, match="TEST_USER_KEY"):
+        configure_user_simulator(
+            ROUTE, lock_path=tmp_path / "lock.json", repo_root=tmp_path,
+            environment=environment)

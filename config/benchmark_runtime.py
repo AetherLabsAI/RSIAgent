@@ -69,7 +69,7 @@ def _bind(environment: MutableMapping[str, str], name: str, value: object,
 def configure_user_simulator(
         user_simulator: dict | None, *, lock_path: Path, repo_root: Path,
         environment: MutableMapping[str, str],
-        require_credential: bool = True) -> dict | None:
+        load_credential: bool = True) -> dict | None:
     """Bind the optional task-user channel independently of the evaluator."""
     if user_simulator is None:
         return None
@@ -86,11 +86,28 @@ def configure_user_simulator(
     for key in required:
         _bind(bound, f"OSWORLD_USER_SIM_{key.upper()}", user_simulator[key],
               lock_path=lock_path)
-    key_env = str(user_simulator["api_key_env"])
-    _load_secret(bound, key_env, repo_root=repo_root,
-                 required=require_credential)
+    if load_credential:
+        _load_secret(bound, str(user_simulator["api_key_env"]),
+                     repo_root=repo_root)
     environment.update(bound)
     return {key: user_simulator[key] for key in required}
+
+
+def load_user_simulator_credential(
+        *, repo_root: Path,
+        environment: MutableMapping[str, str] | None = None) -> None:
+    """Fill the task-user fallback after the child's normal dotenv setup."""
+    values = os.environ if environment is None else environment
+    key_env = values.get("OSWORLD_USER_SIM_API_KEY_ENV", "")
+    if (not key_env or values.get("OSWORLD_USER_SIM_API_KEY")
+            or values.get(key_env)):
+        return
+    # A repository fallback belongs only to this user channel. Injecting it as
+    # OPENROUTER_API_KEY would also change the Actor's credential resolution.
+    candidate = dict(values)
+    _load_secret(candidate, key_env, repo_root=repo_root, required=False)
+    if candidate.get(key_env):
+        values["OSWORLD_USER_SIM_API_KEY"] = candidate[key_env]
 
 
 def configure_associated_benchmark_lock(

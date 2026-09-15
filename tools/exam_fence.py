@@ -131,17 +131,18 @@ def _text_fields(value):
         yield value if isinstance(value, str) else json.dumps(value)
 
 
-def _transcript_audit_copy(text: str) -> str:
-    """Recognize ArtifactSink's schema and the runner's actual Program grammar."""
+def _transcript_audit_copy(text: str) -> tuple[str, str]:
+    """Return decoded text plus its path-check copy for recorded observations."""
     try:
         doc = json.loads(text)
     except (ValueError, TypeError):
-        return text
+        return text, text
     if (not isinstance(doc, dict) or not isinstance(doc.get("system"), str)
             or not isinstance(doc.get("messages"), list)):
-        return text
+        return text, text
     from core.actor import Program, parse_turn
 
+    original = "\n".join(_text_fields(doc))
     previous = None
     for message in doc["messages"]:
         if not isinstance(message, dict):
@@ -160,7 +161,7 @@ def _transcript_audit_copy(text: str) -> str:
             if isinstance(action, Program):
                 message["content"] = _observed_path_copy(content)
         previous = message
-    return "\n".join(_text_fields(doc))
+    return original, "\n".join(_text_fields(doc))
 
 
 def _trace_audit_copy(path: Path, text: str) -> str:
@@ -285,7 +286,8 @@ def _authorized_near_shingle(gram: str, authorized_words: list[str]) -> bool:
 
 
 def audit_text(text: str, mode: str = "practice",
-               authorized_instruction: str = "") -> list:
+               authorized_instruction: str = "", *,
+               path_text: str | None = None) -> list:
     """Return violation records for one text (empty means clean).
 
     ``authorized_instruction`` is the narrow target-aware exception: shingles
@@ -293,11 +295,16 @@ def audit_text(text: str, mode: str = "practice",
     language instruction are training input, not leakage.  Structural signals
     (benchmark paths/repositories/task ids) and every grader-only value remain
     forbidden.  The empty default preserves the blind fence exactly.
+
+    ``path_text`` is an optional observation-aware copy for PATH_PAT only.
+    All other signals are checked against the unchanged text, including
+    task identifiers or constants inside an otherwise ordinary application path.
     """
     global _GRAMS_CACHE
     hits = []
-    if PATH_PAT.search(text):
-        hits.append({"kind": "exam-path", "match": PATH_PAT.search(text).group(0)})
+    path_match = PATH_PAT.search(text if path_text is None else path_text)
+    if path_match:
+        hits.append({"kind": "exam-path", "match": path_match.group(0)})
     if REPO_PAT.search(text):
         hits.append({"kind": "repo-url", "match": REPO_PAT.search(text).group(0)})
     if mode == "practice":
@@ -356,13 +363,15 @@ def audit_transcripts(root: str, mode: str = "practice",
                 txt = open(p, encoding="utf-8", errors="ignore").read()
             except OSError:
                 continue
+            path_text = None
             if fn == "transcript.json":
-                txt = _transcript_audit_copy(txt)
+                txt, path_text = _transcript_audit_copy(txt)
             elif fn == "trace.txt":
-                txt = _trace_audit_copy(Path(p), txt)
+                path_text = _trace_audit_copy(Path(p), txt)
             hits = audit_text(
                 txt, mode=mode,
-                authorized_instruction=authorized_instruction)
+                authorized_instruction=authorized_instruction,
+                path_text=path_text)
             if hits:
                 out.append({"file": p, "hits": hits})
     return out

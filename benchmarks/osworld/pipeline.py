@@ -257,9 +257,9 @@ def _configure_release_environment(
     user_simulator = configure_user_simulator(
         lock.get("user_simulator"), lock_path=lock_path,
         repo_root=RSIAGENT_ROOT, environment=environment,
-        # Most tasks never construct an LLM user. Missing credentials remain an
-        # error at actual user interaction, not an unrelated phase preflight.
-        require_credential=False)
+        # Resolve credentials only after the child's existing OSWorld dotenv
+        # setup; loading shared keys here would change Actor key precedence.
+        load_credential=False)
 
     assets = lock.get("task_assets")
     asset_record: dict[str, Any] = {"mode": "inherited"}

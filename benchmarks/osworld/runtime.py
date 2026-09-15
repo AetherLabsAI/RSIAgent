@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from config.benchmark_runtime import load_user_simulator_credential
 from config.runtime_paths import (
     resolve_env_file,
     resolve_osworld_root,
@@ -35,6 +36,7 @@ def _install_paths() -> None:
         dotenv.load_dotenv(OSWORLD_ROOT / ".env", override=False)
     except ImportError:
         pass
+    load_user_simulator_credential(repo_root=RSIAGENT_ROOT)
     for path in (str(OSWORLD_ROOT), str(RSIAGENT_ROOT)):
         if path not in sys.path:
             sys.path.insert(0, path)
