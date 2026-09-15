@@ -5,7 +5,7 @@
 [![Paper: Overleaf](https://img.shields.io/badge/Paper-Overleaf-b31b1b?style=flat)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f)
 [![OSWorld: 108 tasks](https://img.shields.io/badge/OSWorld-108_tasks-007ec6?style=flat)](#benchmarks)
 [![ALE: 67 tasks](https://img.shields.io/badge/ALE-67_tasks-6554c0?style=flat)](#benchmarks)
-[![License: Not selected](https://img.shields.io/badge/License-Not_selected-lightgrey?style=flat)](#license-status)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
 [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
 
@@ -278,6 +278,6 @@ If you use RSIAgent, please cite the manuscript:
 }
 ```
 
-## License status
+## License
 
-A distribution license has not yet been selected for this repository. Third-party dependency licenses are described in [THIRD_PARTY.md](docs/THIRD_PARTY.md).
+RSIAgent is licensed under the [Apache License 2.0](LICENSE). Third-party dependencies and benchmark assets retain their respective licenses and terms; see [third-party attribution](docs/THIRD_PARTY.md).

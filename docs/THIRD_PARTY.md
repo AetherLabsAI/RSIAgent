@@ -1,8 +1,12 @@
 # Dependencies and benchmark attribution
 
+RSIAgent is licensed under the [Apache License 2.0](../LICENSE). The third-party
+components and assets described below retain their respective licenses and terms.
+
 RSIAgent integrates with [OSWorld-V2](https://github.com/xlang-ai/OSWorld-V2),
 maintained by the OSWorld contributors. Its source is separately licensed under
-Apache-2.0. Benchmark tasks, gated assets, guest images, and hosted websites are
+[Apache-2.0](https://github.com/xlang-ai/OSWorld-V2/blob/main/LICENSE).
+Benchmark tasks, gated assets, guest images, and hosted websites are
 obtained separately and remain subject to their respective terms and access
 requirements. They are not bundled in this source release.
 
