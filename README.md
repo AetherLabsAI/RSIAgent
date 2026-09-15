@@ -4,7 +4,6 @@
 
 [![Paper: arXiv](https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat)](https://arxiv.org/pdf/2609.15364)
 [![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
-[![Huggingface: Community](https://huggingface.co/papers/2609.15364)](https://huggingface.co/papers/2609.15364)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
 [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
