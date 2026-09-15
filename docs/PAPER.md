@@ -4,15 +4,19 @@ The README describes **RSIAgent: Autonomous Exploration for Recursive
 Self-improvement in New Environments**, by Sibo Zhu, Shicheng Fan, Xinyue Wang,
 Wenyi Wu, Kun Zhou, and Biwei Huang.
 
-Its source is the [Overleaf project](https://www.overleaf.com/project/6a9a6f621edd6601b808861f).
+Read the [public paper PDF](RSIAgent.pdf).
+
+The PDF was exported on September 15, 2026, from manuscript revision
+`0234fa06a107b0384b5f480615f233faee22ae37`, verified against the remote Overleaf
+head on that date. It is a locally compiled, 49-page technical-report snapshot.
+The export used Tectonic with a build-only package-option adjustment for `xcolor`;
+the manuscript text and Overleaf source were not changed. No arXiv identifier or
+conference acceptance is implied.
+
 The method text and framework figure were read from a clean local checkout at
 revision `6e36cb432ddda99f8cc60a8af74d72b1a9b693d5` on September 13, 2026.
 The main results and reporting scope were updated from local manuscript revision
 `8c8d6006e6da2b0670bcd8f45d6428d047102afc` on September 14, 2026.
-The remote Overleaf head could not be verified during this documentation update;
-these revisions identify the manuscript sources used. The Overleaf link is a
-project link and may require access. No public PDF, arXiv identifier, or publication venue is
-implied by the citation.
 
 ## Method sources
 

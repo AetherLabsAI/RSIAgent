@@ -2,7 +2,7 @@
 
 **Autonomous Exploration for Recursive Self-improvement in New Environments**
 
-[![Paper: Overleaf](https://img.shields.io/badge/Paper-Overleaf-b31b1b?style=flat)](https://www.overleaf.com/project/6a9a6f621edd6601b808861f)
+[![Paper: PDF](https://img.shields.io/badge/Paper-PDF-b31b1b?style=flat)](docs/RSIAgent.pdf)
 [![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
@@ -273,7 +273,7 @@ If you use RSIAgent, please cite the manuscript:
             and Wu, Wenyi and Zhou, Kun and Huang, Biwei},
   year = {2026},
   note = {Technical report},
-  url = {https://www.overleaf.com/project/6a9a6f621edd6601b808861f}
+  url = {https://github.com/AetherLabsAI/RSIAgent/blob/main/docs/RSIAgent.pdf}
 }
 ```
 
