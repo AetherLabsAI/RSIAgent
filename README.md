@@ -19,8 +19,6 @@
 >
 > [![WeChat article reads: 38K+](https://img.shields.io/badge/WeChat_reads-38K%2B-2E7D32?style=flat-square&logo=wechat&logoColor=white)](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ)
 >
-> [**📖 Read the feature →**](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ) · [**🎬 Watch the case studies →**](https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4)
->
 > <sub>Read-count snapshot: September 15, 2026.</sub>
 
 ## Overview
