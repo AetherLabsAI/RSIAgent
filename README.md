@@ -6,7 +6,7 @@
 [![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
 
-[News](#news) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
+[News](#news) · [Demos](#demos) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
 
 <a id="news"></a>
 
@@ -17,7 +17,7 @@
 > **Open-source models surpass GPT-6 Astra on challenging computer-use benchmarks.**
 > Discover how RSIAgent turns autonomous exploration into reusable experience—without updating model weights.
 >
-> [![WeChat article reads: 38K+](https://img.shields.io/badge/WeChat_reads-38K%2B-2E7D32?style=flat-square&logo=wechat&logoColor=white)](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ)
+> [![WeChat article reads: 39K+](https://img.shields.io/badge/WeChat_reads-39K%2B-2E7D32?style=flat-square&logo=wechat&logoColor=white)](https://mp.weixin.qq.com/s/bg0tkvHsKTZ88uBNKUdVTQ)
 >
 > <sub>Read-count snapshot: September 15, 2026.</sub>
 
@@ -33,6 +33,37 @@ The paper's central strategy is **broad-then-deep exploration**: first acquire
 diverse experience, then investigate hard cases, hidden constraints, and boundary
 conditions. The resulting memory contains procedures, scripts, and failure lessons
 that the Actor Agent reuses for downstream task execution.
+
+<a id="demos"></a>
+
+## 🎬 Demos
+
+Click either preview to watch the full video with sound.
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-evolution.mp4">
+        <img src="docs/assets/evolution-preview.gif" alt="Evolution film preview: the RSIAgent form transforms and ends with Always evolving." width="100%">
+      </a>
+      <br>
+      <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-evolution.mp4"><strong>▶ Evolution · 0:20</strong></a>
+      <br>
+      <sub>Always evolving.</sub>
+    </td>
+    <td width="50%" align="center">
+      <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4">
+        <img src="docs/assets/case-studies-preview.gif" alt="Case-study preview: recorded REAPER and FreeCAD desktop replays alongside evolving memory." width="100%">
+      </a>
+      <br>
+      <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4"><strong>▶ RSIAgent in Action · 1:29</strong></a>
+      <br>
+      <sub>REAPER + FreeCAD · Recorded replays with evolving memory.</sub>
+    </td>
+  </tr>
+</table>
+
+## Framework
 
 [![RSIAgent framework: parallel Broad Recursive Self-exploration, sequential Deep Recursive Self-exploration, and test-time reuse of frozen memory, illustrated with FreeCAD.](docs/assets/framework.png)](docs/assets/framework.png)
 
