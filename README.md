@@ -1,12 +1,22 @@
-# RSIAgent
+<p align="center">
+  <img src="docs/assets/rsiagent-icon.svg" alt="RSIAgent icon" width="104" height="104">
+</p>
 
-**Autonomous Exploration for Recursive Self-improvement in New Environments**
+<h1 align="center">RSIAgent</h1>
 
-[![Paper: arXiv](https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat)](https://arxiv.org/pdf/2609.15364)
-[![Website: RSIAgent](https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat)](https://aetherlabsai.github.io/RSIAgent/)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat)](LICENSE)
+<p align="center">
+  <strong>Autonomous Exploration for Recursive Self-improvement in New Environments</strong>
+</p>
 
-[News](#news) · [Demos](#demos) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
+<p align="center">
+  <a href="https://arxiv.org/pdf/2609.15364"><img src="https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat" alt="Paper: arXiv"></a>
+  <a href="https://aetherlabsai.github.io/RSIAgent/"><img src="https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat" alt="Website: RSIAgent"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat" alt="License: Apache 2.0"></a>
+</p>
+
+<p align="center">
+  <a href="#news">News</a> · <a href="#demos">Demos</a> · <a href="#method">Method</a> · <a href="#results">Results</a> · <a href="#installation">Quickstart</a> · <a href="#documentation">Documentation</a> · <a href="#citation">Citation</a>
+</p>
 
 https://github.com/user-attachments/assets/11cb3919-1073-4ba3-8bcd-37a15ec53c33
 
