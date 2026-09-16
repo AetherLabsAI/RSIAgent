@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 126" width="1060" height="126" role="img" aria-labelledby="title">
+  <title id="title">Autonomous Exploration for Recursive Self-improvement in New Environments</title>
+  <style>
+    text { fill: #222520; }
+    @media (prefers-color-scheme: dark) { text { fill: #f0f2ef; } }
+  </style>
+  <g text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="600">
+    <text x="530" y="48">Autonomous Exploration for Recursive</text>
+    <text x="530" y="104">Self-improvement in New Environments</text>
+  </g>
+</svg>
