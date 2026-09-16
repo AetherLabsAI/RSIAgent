@@ -2,11 +2,11 @@
   <img src="docs/assets/rsiagent-icon.svg" alt="RSIAgent icon" width="104" height="104">
 </p>
 
-<h1 align="center">RSIAgent</h1>
+<h1 align="center">
+  <img src="docs/assets/rsiagent-wordmark.svg" alt="RSIAgent" width="480">
+</h1>
 
-<p align="center">
-  <strong>Autonomous Exploration for Recursive Self-improvement in New Environments</strong>
-</p>
+<h2 align="center">Autonomous Exploration for Recursive<br>Self-improvement in New Environments</h2>
 
 <p align="center">
   <a href="https://arxiv.org/pdf/2609.15364"><img src="https://img.shields.io/badge/Paper-arXiv-b31b1b?style=flat" alt="Paper: arXiv"></a>
@@ -33,7 +33,9 @@ https://github.com/user-attachments/assets/11cb3919-1073-4ba3-8bcd-37a15ec53c33
 >
 > <sub>Read-count snapshot: September 15, 2026.</sub>
 
-## Overview
+<a id="overview"></a>
+
+## 🧭 Overview
 
 RSIAgent is a **training-free framework for recursive self-improvement** in new
 digital environments. It coordinates the Curriculum Agent, Actor Agent, and
@@ -52,7 +54,9 @@ that the Actor Agent reuses for downstream task execution.
 
 https://github.com/user-attachments/assets/b939a9c2-4acb-4c30-b72e-18bab646529c
 
-## Framework
+<a id="framework"></a>
+
+## 🧩 Framework
 
 [![RSIAgent framework: parallel Broad Recursive Self-exploration, sequential Deep Recursive Self-exploration, and test-time reuse of frozen memory, illustrated with FreeCAD.](docs/assets/framework.png)](docs/assets/framework.png)
 
@@ -60,7 +64,9 @@ https://github.com/user-attachments/assets/b939a9c2-4acb-4c30-b72e-18bab646529c
 experience is progressively refined into targeted memory, then frozen for reuse.
 Click the figure for full resolution. [Figure provenance](docs/PAPER.md#figure-provenance).*
 
-## Method
+<a id="method"></a>
+
+## 🔄 Method
 
 Three agents carry out the recursive learning loop:
 
@@ -92,7 +98,9 @@ Official benchmark scores are kept outside the learning loop. See
 [Architecture](docs/ARCHITECTURE.md) for the role interfaces, wave memory barrier,
 and stopping rules.
 
-## Results
+<a id="results"></a>
+
+## 📊 Results
 
 The manuscript reports these **mean partial-credit scores (%)** for the shared
 harness coordinating the Actor Agent and Verifier Agent, with and without RSI:
@@ -117,7 +125,9 @@ the relevant weakness, verification can accept incomplete work, and memory can
 preserve an incorrect rule. The quality of exploration, verification, and memory
 consolidation therefore matters alongside the amount of practice.
 
-## Benchmarks
+<a id="benchmarks"></a>
+
+## 🧪 Benchmarks
 
 | Integration | Pinned release | Public batch |
 | --- | --- | --- |
@@ -131,7 +141,9 @@ Only the current runtime is included. Both integrations use the same Actor,
 Verifier, Curriculum, and memory protocol. Benchmark setup and grading remain
 outside the learning process.
 
-## Repository layout
+<a id="repository-layout"></a>
+
+## 🗂️ Repository layout
 
 ```text
 run_osworld.py        OSWorld batch entrypoint
@@ -154,7 +166,9 @@ The two root entrypoints are the starting point for benchmark runs. Internal
 OSWorld stages are Python modules under `benchmarks/osworld/`; see the
 [source map](docs/ARCHITECTURE.md#source-map) for their responsibilities.
 
-## Installation
+<a id="installation"></a>
+
+## ⚙️ Installation
 
 Use Python 3.12, [uv](https://docs.astral.sh/uv/getting-started/installation/),
 and a Linux host with Docker and access to `/dev/kvm`. Start with the repository
@@ -174,7 +188,9 @@ Follow the setup for the benchmark you want to run. All commands below start
 from the `RSIAgent` directory unless a `cd` is shown. VM images and benchmark
 assets are downloaded separately.
 
-### OSWorld
+<a id="osworld"></a>
+
+### 🖥️ OSWorld
 
 Install the pinned [OSWorld release](https://github.com/xlang-ai/OSWorld-V2/tree/v2026.08.08)
 and follow its [Docker setup](https://github.com/xlang-ai/OSWorld-V2/blob/v2026.08.08/docs/PROVIDER_SETUP.md#docker).
@@ -203,7 +219,9 @@ shell, activate it with `source ../OSWorld-V2/.venv/bin/activate`.
 The audit files under `results/` stay on the host and never enter Agent prompts
 or memory.
 
-### ALE
+<a id="ale"></a>
+
+### 🎓 ALE
 
 The setup script clones the pinned upstream source and installs separate grader
 and worker environments. This separation prevents the two projects' Python
@@ -232,12 +250,16 @@ ALE requires a successful smoke for each requested OS on the current source and
 runner image. Use a new `--output` directory when repeating a smoke. See
 [ALE operations](docs/ALE.md) for storage options and the upstream guide.
 
-## Run batches
+<a id="run-batches"></a>
+
+## 🚀 Run batches
 
 Choose `--arm baseline` for task execution without RSI, `--arm rsi` for learning
 followed by frozen-memory evaluation, or `--arm both` to run both.
 
-### OSWorld
+<a id="osworld-1"></a>
+
+### 🖥️ OSWorld
 
 Inspect the full 108-task plan, then run it:
 
@@ -251,7 +273,9 @@ outputs. Logs and task status are under `results/batches/<name>/`. A task failur
 stops its remaining phases; other tasks continue. Choose a new `--name` for each
 batch because existing outputs are never overwritten.
 
-### ALE
+<a id="ale-1"></a>
+
+### 🎓 ALE
 
 Inspect the cohort, run the supported tasks, and generate a report:
 
@@ -271,7 +295,9 @@ Both entrypoints run batches directly. Begin with `--concurrency 1`; raise it
 when the host has capacity for additional independent task lineages. For custom
 OSWorld protocols and recovery, see [operations](docs/OPERATIONS.md).
 
-## Validation
+<a id="validation"></a>
+
+## ✅ Validation
 
 Portable checks run without credentials, Docker, or benchmark installations:
 
@@ -287,7 +313,9 @@ synthetic files. They make no model or official grader calls. Smoke success
 validates runtime mechanics; reproducing benchmark scores requires complete
 experiments with the pinned configuration.
 
-## Documentation
+<a id="documentation"></a>
+
+## 📚 Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [OSWorld operations and recovery](docs/OPERATIONS.md)
@@ -296,7 +324,9 @@ experiments with the pinned configuration.
 - [Paper and reporting scope](docs/PAPER.md)
 - [Contributing](docs/CONTRIBUTING.md) · [Third-party attribution](docs/THIRD_PARTY.md)
 
-## Citation
+<a id="citation"></a>
+
+## 📝 Citation
 
 If you use RSIAgent, please cite the [arXiv preprint](https://arxiv.org/abs/2609.15364):
 
@@ -312,6 +342,8 @@ If you use RSIAgent, please cite the [arXiv preprint](https://arxiv.org/abs/2609
 }
 ```
 
-## License
+<a id="license"></a>
+
+## ⚖️ License
 
 RSIAgent is licensed under the [Apache License 2.0](LICENSE). Third-party dependencies and benchmark assets retain their respective licenses and terms; see [third-party attribution](docs/THIRD_PARTY.md).

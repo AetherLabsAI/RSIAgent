@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 88" width="480" height="88" role="img" aria-labelledby="title">
+  <title id="title">RSIAgent</title>
+  <style>
+    text { fill: #222520; }
+    @media (prefers-color-scheme: dark) { text { fill: #f0f2ef; } }
+  </style>
+  <text x="240" y="68" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="600" letter-spacing="-2">RSIAgent</text>
+</svg>
