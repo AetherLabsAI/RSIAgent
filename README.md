@@ -8,15 +8,7 @@
 
 [News](#news) · [Demos](#demos) · [Method](#method) · [Results](#results) · [Quickstart](#installation) · [Documentation](#documentation) · [Citation](#citation)
 
-<p align="center">
-  <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-evolution.mp4">
-    <img src="docs/assets/evolution-preview.gif" alt="Evolution film preview: the RSIAgent form transforms and ends with Always evolving." width="100%">
-  </a>
-  <br>
-  <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-evolution.mp4"><strong>▶ Evolution · 0:20</strong></a>
-  <br>
-  <sub>Always evolving. Click to watch with sound.</sub>
-</p>
+https://github.com/user-attachments/assets/11cb3919-1073-4ba3-8bcd-37a15ec53c33
 
 <a id="news"></a>
 
@@ -48,17 +40,7 @@ that the Actor Agent reuses for downstream task execution.
 
 ## 🎬 Demos
 
-Click the preview to watch the full video with sound.
-
-<p align="center">
-  <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4">
-    <img src="docs/assets/case-studies-preview.gif" alt="Case-study preview: recorded REAPER and FreeCAD desktop replays alongside evolving memory." width="100%">
-  </a>
-  <br>
-  <a href="https://aetherlabsai.github.io/RSIAgent/assets/rsiagent-case-studies.mp4"><strong>▶ RSIAgent in Action · 1:29</strong></a>
-  <br>
-  <sub>REAPER + FreeCAD · Recorded replays with evolving memory.</sub>
-</p>
+https://github.com/user-attachments/assets/b939a9c2-4acb-4c30-b72e-18bab646529c
 
 ## Framework
 
