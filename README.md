@@ -192,6 +192,90 @@ Fill in `OPENROUTER_API_KEY` in `.env`. Paths default to this checkout and sibli
 benchmark directories. Export `RSIAGENT_ROOT`, `OSWORLD_ROOT`, or
 `RSIAGENT_ENV_FILE` only when using a different layout.
 
+<a id="orcarouter"></a>
+
+### 🐋 OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai) is an OpenAI-compatible gateway that can
+serve as the model provider instead of OpenRouter. It is selected explicitly, so
+an unset value leaves every existing run on the endpoint it already used:
+
+```bash
+# .env
+RSIAGENT_LLM_PROVIDER=orcarouter
+```
+
+Inference and model discovery go to `https://api.orcarouter.ai/v1`; authentication
+goes to `https://www.orcarouter.ai`. There are two ways to supply a credential,
+and both end in an ordinary `sk-orca-…` API key that belongs to your own account —
+billed to it, listed in its console, revocable by you at any time. No client
+secret is involved.
+
+**1. Paste an existing key** (`https://www.orcarouter.ai/console/authorized-apps`):
+
+```bash
+# .env
+ORCA_API_KEY=sk-orca-…
+```
+
+**2. Authorize in a browser** (OAuth 2.0 + PKCE, `S256`) — the issued key is
+stored in the same `.env`, and reused on later runs:
+
+```bash
+python -m llm.connect login              # open the consent screen, paste the code
+python -m llm.connect login --loopback   # local desktop: redirects back to 127.0.0.1
+python -m llm.connect status             # show the stored credential
+python -m llm.connect logout             # remove it
+```
+
+The default is the out-of-band code flow because RSIAgent usually runs over SSH,
+in a container, or on a box whose address differs per deployment — there is no
+callback address to pre-register. `--loopback` is for a local desktop session.
+
+A PKCE-issued key is durable but it is **not** a refresh token: there is no
+refresh grant, OrcaRouter caps issuance at 10 keys per user per 24 hours, and the
+key is reused until you revoke it. A `401` from the relay marks exactly the
+credential generation that made the request as needing reauthentication and tells
+you to sign in again — it is never retried in a loop, and no replacement key is
+minted silently.
+
+**Choosing a model.** The selectable models are read live from
+`GET https://api.orcarouter.ai/v1/models` with your own key, so the list is what
+your workspace can actually call:
+
+```bash
+python -m llm.models list                                   # text chat / agent loop
+python -m llm.models list --capability multimodal --modality image
+python -m llm.models check deepseek/deepseek-v4-pro         # validate a configured slug
+```
+
+Each entry point gets its own capability filter. Text selectors require a declared
+text route (`openai` / `anthropic` / `gemini` / `openai-response`) and exclude
+dedicated image, video, embedding, and rerank models. The image-understanding path
+(native Look, `core/eyes.py`) additionally requires the model to declare an
+`image` input modality; a model that declares nothing is left out rather than
+guessed at, so `deepseek/deepseek-v4-flash` (declared text-only) and
+`orcarouter/auto` (declares no modality) are not offered for images while
+`deepseek/deepseek-v4.1-flash` is. If discovery fails, the command says so and
+falls back to a small verified catalog rather than accepting a model name typed
+from memory.
+
+Self-hosted deployments can set one shared `ORCA_BASE_URL`, or separate
+`ORCA_AUTH_BASE_URL` / `ORCA_API_BASE_URL` overrides; explicit values win. Remote
+origins must be `https` — plain `http` is accepted only for loopback development.
+
+The Actor's model is the `model` field of its role config (`config/roles/*.yaml`,
+`config/osworld/*.yaml`), so point it at one of the listed IDs — the vendor
+namespace is part of the slug and must be kept exactly as listed:
+
+```yaml
+model: deepseek/deepseek-v4-pro
+```
+
+Note that an OrcaRouter run is a new provider for the same frozen experiment
+lineage: record the endpoint and model alongside your results as you would for
+any other route.
+
 Follow the setup for the benchmark you want to run. All commands below start
 from the `RSIAgent` directory unless a `cd` is shown. VM images and benchmark
 assets are downloaded separately.
