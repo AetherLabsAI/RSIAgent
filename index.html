@@ -45,12 +45,10 @@
       <p class="eyebrow">01 / The idea</p>
       <div class="section-intro"><h2 id="method-title">The next attempt<br>should not start<br><em>from zero.</em></h2><div class="intro-copy"><p>Unfamiliar software comes with its own interfaces, conventions, and failure modes. An agent can repair a mistake during one attempt and still have to discover the same lesson again in the next.</p><p>RSIAgent turns these interactions into persistent experience. It explores, checks outcomes, and consolidates useful procedures into memory that subsequent attempts can reuse—<strong>without updating model weights.</strong></p></div></div>
 
-      <div class="role-loop" aria-label="The curriculum agent proposes tasks, the actor agent executes code, and the verifier agent checks outcomes. The actor agent consolidates experience into reusable memory.">
-        <div><span class="role-label">curriculum agent</span><span class="role-description">Propose what to explore</span></div><span class="loop-arrow" aria-hidden="true">→</span>
-        <div><span class="role-label">actor agent</span><span class="role-description">Act through code</span></div><span class="loop-arrow" aria-hidden="true">→</span>
-        <div><span class="role-label">verifier agent</span><span class="role-description">Check the outcome</span></div>
-      </div>
-      <p class="loop-return"><span aria-hidden="true">↶</span> Experience is consolidated into memory and informs the next exploration.</p>
+      <figure class="paper-figure overview-figure">
+        <a href="assets/figure-1.svg" target="_blank" rel="noopener" aria-label="Open Figure 1 at full resolution"><img src="assets/figure-1.svg" width="2048" height="680" alt="Figure 1. RSIAgent overview: the curriculum, actor, and verifier agents recursively explore a new environment and evolve reusable memory. Benchmark comparisons show RSIAgent alongside other models on ALE Last-Exam, ALE Near-term, and OSWorld 2.0." loading="lazy" decoding="async"></a>
+        <figcaption>Figure 1. Recursive self-improvement and benchmark performance. <a href="assets/figure-1.svg" target="_blank" rel="noopener">Open the full figure ↗</a></figcaption>
+      </figure>
 
       <div class="stages">
         <article><span class="stage-index">01</span><p class="stage-meta">BRS / Parallel exploration</p><h3>Broad Recursive<br>Self-exploration</h3><p>Explore complementary directions in parallel. Acquire practical knowledge of the environment, tools, and procedures that may matter for the task.</p></article>
