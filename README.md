@@ -18,6 +18,9 @@
   <a href="https://huggingface.co/papers/2609.15364" title="No. 6 on the September 15, 2026 Daily Papers list; checked September 16, 2026 (UTC)"><img src="https://img.shields.io/badge/HF_Daily_Papers-%236_%C2%B7_2026--09--15-FFD21E?style=flat&amp;logo=huggingface&amp;logoColor=FFD21E" alt="Hugging Face Daily Papers: #6 on the September 15, 2026 list"></a>
   <a href="https://aetherlabsai.github.io/RSIAgent/"><img src="https://img.shields.io/badge/Website-RSIAgent-6554c0?style=flat" alt="Website: RSIAgent"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue?style=flat" alt="License: Apache 2.0"></a>
+  <a href="https://github.com/WenyiWU0111/RSIGame">
+  <img src="https://img.shields.io/badge/Companion-RSIGame-FF7A45?style=flat&logo=github&logoColor=white"
+       alt="Companion Project: RSIGame"></a>
 </p>
 
 <!-- Rank snapshot verified September 16, 2026 (UTC): https://huggingface.co/papers/date/2026-09-15 -->
@@ -55,6 +58,15 @@ The paper's central strategy is **broad-then-deep exploration**: first acquire
 diverse experience, then investigate hard cases, hidden constraints, and boundary
 conditions. The resulting memory contains procedures, scripts, and failure lessons
 that the Actor Agent reuses for downstream task execution.
+
+> 🎮 **From self-evolving agents to self-evolving games.**
+> **[RSIGame](https://arxiv.org/abs/2609.39045)** extends our recursive
+> self-improvement research from reusable agent experience to autonomous game
+> development: agents explore, improve, verify, and progressively evolve the
+> games they create.
+>
+> **[📄 Paper](https://arxiv.org/abs/2609.39045)** ·
+> **[💻 GitHub](https://github.com/WenyiWU0111/RSIGame)**
 
 <a id="demos"></a>
 
