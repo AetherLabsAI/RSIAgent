@@ -59,15 +59,6 @@ diverse experience, then investigate hard cases, hidden constraints, and boundar
 conditions. The resulting memory contains procedures, scripts, and failure lessons
 that the Actor Agent reuses for downstream task execution.
 
-> 🎮 **From self-evolving agents to self-evolving games.**
-> **[RSIGame](https://arxiv.org/abs/2609.39045)** extends our recursive
-> self-improvement research from reusable agent experience to autonomous game
-> development: agents explore, improve, verify, and progressively evolve the
-> games they create.
->
-> **[📄 Paper](https://arxiv.org/abs/2609.39045)** ·
-> **[💻 GitHub](https://github.com/WenyiWU0111/RSIGame)**
-
 <a id="demos"></a>
 
 ## 🎬 Demos
@@ -332,6 +323,14 @@ memory, candidate replay, Verifier isolation, and checkpoint rollback using
 synthetic files. They make no model or official grader calls. Smoke success
 validates runtime mechanics; reproducing benchmark scores requires complete
 experiments with the pinned configuration.
+
+<a id="related-project"></a>
+
+## 🔗 Related Projects
+
+- **[RSIGame](https://github.com/WenyiWU0111/RSIGame)** extends our research on recursive self-improvement to autonomous game development. Agents iteratively build, test, and refine games, using feedback from each round to guide subsequent improvements. It explores how experience accumulated during development can help agents improve the games they create.
+
+  [Paper](https://arxiv.org/abs/2609.39045) · [Code](https://github.com/WenyiWU0111/RSIGame)
 
 <a id="documentation"></a>
 
