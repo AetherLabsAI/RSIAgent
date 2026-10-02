@@ -1,43 +1,100 @@
-"""Minimal OpenRouter client with robust JSON and durable multimodal history.
+"""Minimal OpenAI-compatible client with robust JSON and durable multimodal history.
 
 RSIAgent remains a code-as-policy agent. Native Look attachments are transported as
 exact image bytes and retained losslessly in the internal transcript so later turns
-and recovered processes receive the same observations. The key comes from
-``$OPENROUTER_API_KEY`` or a ``.env`` file.
+and recovered processes receive the same observations. The endpoint and the key
+both come from :mod:`llm.provider`: OpenRouter by default, or OrcaRouter when
+``RSIAGENT_LLM_PROVIDER=orcarouter``, with the credential read from
+``$OPENROUTER_API_KEY`` / ``$ORCA_API_KEY`` or the ``.env`` file.
 """
 import base64
 import hashlib
 import json
 import logging
-import os
 import threading
 import time
 
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI
 
-from config.runtime_paths import resolve_env_file
+from llm.provider import (
+    ORCAROUTER,
+    Credential,
+    CredentialUnavailable,
+    active_provider,
+    acquire_credential,
+    mark_needs_reauth,
+    needs_reauth,
+    provider_profile,
+    reauth_reason,
+)
 
 
 def _api_key() -> str:
-    k = os.environ.get("OPENROUTER_API_KEY", "")
-    if not k:
-        src = resolve_env_file()
-        try:
-            with src.open(encoding="utf-8") as handle:
-                for line in handle:
-                    if line.startswith("OPENROUTER_API_KEY="):
-                        k = line.split("=", 1)[1].strip()
-                        break
-        except FileNotFoundError:
-            pass
-    return k
+    """The credential for the active provider — through the shared seam.
+
+    Both the pasted-key and the PKCE entry points write the same stored value, so
+    this function cannot tell them apart and does not try to. Resolution failures
+    return ``""`` to preserve this function's long-standing contract, which the
+    runtime-path and user-simulator tests rely on; the transport reports the
+    actionable remedy from :func:`require_credential` instead.
+    """
+    try:
+        return acquire_credential().api_key
+    except CredentialUnavailable:
+        return ""
+
+
+def require_credential() -> Credential:
+    """The active provider's credential, or an actionable failure.
+
+    The strict accessor, for callers that cannot do anything useful without a
+    credential (the connect CLI, the live check, a settings screen).
+    :func:`chat` uses :func:`optional_credential` instead, so a process with no
+    key configured keeps failing exactly where it always did — on the request —
+    rather than at a new import-time boundary.
+    """
+    try:
+        return acquire_credential()
+    except CredentialUnavailable as exc:
+        raise LLMTransportError(
+            provider_profile().label, exc, recoverable=False,
+            detail=str(exc)) from exc
+
+
+def optional_credential() -> Credential:
+    """The active provider's credential, or ``None`` when none is configured.
+
+    A missing credential is not itself the failure: the request still goes out
+    and the provider's own response is what the run reacts to. This matters for
+    the transport tests, which drive the SDK with an injected stub client and no
+    key at all, and it keeps the pre-existing no-key behaviour unchanged.
+    """
+    try:
+        return acquire_credential()
+    except CredentialUnavailable:
+        return None
+
+
+def _client_base_url() -> str:
+    return provider_profile().api_base
 
 
 _client = None
+_built_client = None       # identity of the client this module constructed
+_client_base = None
+_client_generation = None  # credential generation the built client carries
+# The credential `chat` resolved for the request in flight, so `_c` can key its
+# client on it without changing `_c`'s long-standing zero-argument signature.
+_CURRENT_CREDENTIAL = None
 # Phase1 branches and delegated eyes issue completions concurrently. The next
 # pop must retrieve this execution thread's response, never another branch's.
 _LAST_REASONING = threading.local()
 _PROVIDER_COUNTS = {}              # model -> provider -> successful response count
+# The credential generation each caller issued its request under. A 401 is
+# attributed to exactly this generation, so a response that arrives after a
+# re-login cannot mark the replacement credential as broken.
+_ACTIVE_CREDENTIAL = threading.local()
+
 
 # Internal transcript field for exact image bytes that a native-sighted agent has
 # already received. The field is deliberately separate from ``content`` so existing
@@ -162,6 +219,32 @@ def _wire_message(message: dict) -> dict:
     return result
 
 
+def _warn_if_model_cannot_read_images(model: str, image) -> None:
+    """Advisory: note when a model is sent an image it does not declare support for.
+
+    A second line of defence behind the capability-filtered selector, never a
+    substitute for it. It reads only an already-fetched catalog, so it costs no
+    network call and cannot delay a request; it never raises and never blocks a
+    send, because a catalog that is merely slow must not stop an agent run. When
+    the catalog has not been fetched, or does not declare modalities, it says
+    nothing rather than guessing from the model name.
+    """
+    if image is None or active_provider() != ORCAROUTER:
+        return
+    try:
+        from llm import catalog as CAT
+        result = CAT.cached_result(CAT.CAPABILITY_MULTIMODAL, modality="image")
+        if result is None or not result.ids:
+            return
+        if model not in set(result.ids):
+            logging.getLogger("rsiagent.llm").warning(
+                "%s is not in the image-capable catalog for this workspace; the "
+                "attachment may be rejected or ignored by the model. Image-capable "
+                "models: %s", model, ", ".join(result.ids))
+    except Exception:                              # noqa: BLE001
+        return
+
+
 def _request_messages(system: str, user: str, history=None, image=None) -> list:
     """Construct the provider request, rehydrating every durable observation."""
     messages = [{"role": "system", "content": system}]
@@ -178,6 +261,10 @@ class LLMTransportError(RuntimeError):
     exact same request valid later.  Agent runtimes pause on those failures without
     manufacturing an empty assistant message.  Non-recoverable request/configuration
     errors remain ordinary exceptions so a bad experiment cannot wait forever.
+
+    A rejected credential is non-recoverable by construction and is reported as
+    :class:`ReauthRequired`, a subclass: waiting cannot repair a revoked key, and
+    the run must stop and ask the user to sign in again.
     """
 
     def __init__(self, model: str, cause: Exception, *, recoverable: bool,
@@ -214,6 +301,23 @@ class _CompletionResponseError(ValueError):
         self.status_code = code if code is not None and 400 <= code <= 599 else None
         super().__init__("response contained a provider error" if error
                          else "response had no choices")
+
+
+class ReauthRequired(LLMTransportError):
+    """The stored OrcaRouter credential was rejected; the user must sign in again.
+
+    OrcaRouter issues durable keys, not refreshable access tokens, so there is no
+    refresh grant to run and no silent recovery: the exact rejected credential
+    generation is marked ``needsReauth`` and the run stops with an instruction.
+    """
+
+    def __init__(self, model: str, *, provider_label: str, generation: str,
+                 status_code: int = 401, detail: str = ""):
+        self.provider_label = provider_label
+        self.generation = generation
+        super().__init__(
+            model, RuntimeError(f"{provider_label} credential rejected"),
+            recoverable=False, status_code=status_code, detail=detail)
 
 
 def _status_code(exc) -> int:
@@ -254,6 +358,44 @@ def reset_provider_counts() -> None:
     _PROVIDER_COUNTS.clear()
 
 
+def active_credential_generation() -> str:
+    """The generation this execution thread last authenticated with, or ``''``.
+
+    A ledger of request provenance: it records which credential a run actually
+    used without any caller ever handling the key itself.
+    """
+    credential = getattr(_ACTIVE_CREDENTIAL, "value", None)
+    return credential.generation if credential else ""
+
+
+def _authentication_rejected(exc) -> bool:
+    """Whether a provider error means this credential is dead, not this request.
+
+    Deliberately narrow. Only the OrcaRouter provider is affected, and only the
+    two statuses that mean "this key will never work": ``401`` (invalid or
+    revoked) and the ``403`` that the exchange endpoint returns for a rejected
+    grant. Every other status — including ``402`` and ``429``, which are
+    recoverable in this harness — keeps its existing retry policy, because
+    treating a billing or rate-limit condition as a credential failure would
+    force a needless re-login.
+    """
+    if active_provider() != ORCAROUTER:
+        return False
+    return _status_code(exc) in {401, 403}
+
+
+def _reauth_remedy(credential: Credential | None) -> str:
+    """What the operator should do next, without echoing the key or the body."""
+    if credential is None:
+        return ("no OrcaRouter credential is configured. Set ORCA_API_KEY, or "
+                "run `python -m llm.connect login` to authorize in a browser.")
+    return (f"the stored {credential.source} credential (generation "
+            f"{credential.generation}) was rejected. Re-authorize with "
+            f"`python -m llm.connect login`, or replace ORCA_API_KEY. Revoking a "
+            f"client removes every key it holds, so a fresh sign-in is enough to "
+            f"restore access.")
+
+
 def provider_counts() -> dict:
     """Return a JSON-safe snapshot of providers observed in successful responses."""
     return {model: dict(counts) for model, counts in _PROVIDER_COUNTS.items()}
@@ -270,9 +412,30 @@ def pop_last_reasoning() -> str:
 
 
 def _c() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=_api_key())
+    """The SDK client for the active provider.
+
+    Rebuilt when — and only when — the endpoint or the credential generation
+    changes. Both matter: the endpoint keeps an OrcaRouter key off the OpenRouter
+    host and vice versa, and the generation means a process that signs in again
+    actually starts using the new key instead of the one it cached at import.
+
+    The rebuild is keyed on the identity of the client this module built, so a
+    test that injects its own stub keeps it.
+    """
+    global _client, _built_client, _client_base, _client_generation
+    base = _client_base_url()
+    credential = _CURRENT_CREDENTIAL
+    generation = credential.generation if credential is not None else ""
+    if (_client is None
+            or (_client is _built_client
+                and (_client_base != base
+                     or _client_generation != generation))):
+        _client = OpenAI(
+            base_url=base,
+            api_key=(credential.api_key if credential is not None
+                     else _api_key()))
+        _built_client, _client_base, _client_generation = (
+            _client, base, generation)
     return _client
 
 
@@ -296,6 +459,7 @@ def chat(model: str, system: str, user: str,
     its truncation recovery uses ``low``. None omits the field. ``provider_order`` is
     an optional OpenRouter route preference; when present, it is never silently dropped
     after an API error because that would change the frozen experiment mid-run."""
+    _warn_if_model_cannot_read_images(model, image)
     messages = _request_messages(system, user, history=history, image=image)
     kwargs = {}
     if json_object:
@@ -330,6 +494,14 @@ def chat(model: str, system: str, user: str,
     if extra_body:
         kwargs["extra_body"] = extra_body
     log = logging.getLogger("rsiagent.llm")
+    credential = optional_credential()
+    if credential is not None and needs_reauth(credential):
+        raise ReauthRequired(model, provider_label=provider_profile().label,
+                             generation=credential.generation,
+                             detail=reauth_reason(credential))
+    _ACTIVE_CREDENTIAL.value = credential
+    global _CURRENT_CREDENTIAL
+    _CURRENT_CREDENTIAL = credential
     resp = None
     for attempt in range(4):                       # robust to TRANSIENT API errors (non-JSON body,
         try:                                       # 5xx, rate-limit): a flaky response must not kill a run
@@ -341,6 +513,21 @@ def chat(model: str, system: str, user: str,
             break
         except Exception as e:                     # noqa: BLE001
             name = type(e).__name__
+            if _authentication_rejected(e):
+                # A dead credential is terminal, not transient: mark exactly the
+                # generation that made this request and stop. Retrying, and
+                # above all minting a replacement key, would be wrong.
+                if credential is not None:
+                    mark_needs_reauth(credential, f"HTTP {_status_code(e)}")
+                log.error("%s rejected the %s credential (generation %s); "
+                          "reauthentication required", provider_profile().label,
+                          credential.source if credential else "configured",
+                          credential.generation if credential else "<none>")
+                raise ReauthRequired(
+                    model, provider_label=provider_profile().label,
+                    generation=credential.generation if credential else "",
+                    status_code=_status_code(e) or 401,
+                    detail=_reauth_remedy(credential)) from e
             if isinstance(e, _CompletionResponseError):
                 error = e.body.get("error")
                 metadata = error.get("metadata") if isinstance(error, dict) else None
