@@ -1458,3 +1458,39 @@ def test_phase1_agentic_verifier_sees_candidate_not_actor_private_evidence(
     assert "Actor-private memory, handoff prose, reasoning" in \
         observed["context"]
     assert len(harness.evidence_pushes) == 1
+
+
+def test_read_memory_tree_rejects_broken_root_symlink(tmp_path):
+    """A broken durable-memory symlink is corruption, not an absent memory bank.
+
+    Path.exists() follows the link and returns False, so checking exists before
+    is_symlink used to silently return {} and let Phase 2/ALE recovery continue
+    with all learned memory erased from the in-process state.
+    """
+    memory = tmp_path / "active_memory"
+    memory.symlink_to(tmp_path / "missing_memory")
+
+    with pytest.raises(
+        practice_loop.PracticeInfrastructureError,
+        match="durable memory root is not a real directory",
+    ):
+        practice_loop._read_memory_tree(str(memory))
+
+
+def test_read_memory_tree_rejects_existing_root_symlink(tmp_path):
+    target = tmp_path / "actual_memory"
+    target.mkdir()
+    (target / "lesson.md").write_text("learned", encoding="utf-8")
+    memory = tmp_path / "active_memory"
+    memory.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(
+        practice_loop.PracticeInfrastructureError,
+        match="durable memory root is not a real directory",
+    ):
+        practice_loop._read_memory_tree(str(memory))
+
+
+def test_read_memory_tree_absent_root_is_empty(tmp_path):
+    """A genuinely absent memory root remains the supported first-run case."""
+    assert practice_loop._read_memory_tree(str(tmp_path / "never_created")) == {}
