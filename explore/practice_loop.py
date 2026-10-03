@@ -303,9 +303,14 @@ def _safe_memory_name(name: str) -> bool:
 
 def _read_memory_tree(path: str) -> dict[str, bytes]:
     root = Path(path)
+    # Path.exists() follows symlinks, so a broken link reports False. Check the
+    # link itself first: a dangling durable-memory root is corruption and must
+    # fail closed, not masquerade as an absent (therefore empty) memory bank.
+    if root.is_symlink():
+        raise PracticeInfrastructureError("durable memory root is not a real directory")
     if not root.exists():
         return {}
-    if root.is_symlink() or not root.is_dir():
+    if not root.is_dir():
         raise PracticeInfrastructureError("durable memory root is not a real directory")
     files: dict[str, bytes] = {}
     for candidate in sorted(root.rglob("*")):
