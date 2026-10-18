@@ -294,8 +294,8 @@ def chat(model: str, system: str, user: str,
     IGNORED by MiniMax-M3 (verified 2026-07-06: low==high, M3 scales reasoning with
     problem difficulty, not the knob). GLM-5.3 does not support disabling thinking, so
     its truncation recovery uses ``low``. None omits the field. ``provider_order`` is
-    an optional OpenRouter route preference; when present, it is never silently dropped
-    after an API error because that would change the frozen experiment mid-run."""
+    an optional OpenRouter route preference. All request options are preserved through
+    transport retries so an API error cannot change the frozen experiment mid-run."""
     messages = _request_messages(system, user, history=history, image=image)
     kwargs = {}
     if json_object:
@@ -348,13 +348,6 @@ def chat(model: str, system: str, user: str,
                             "embedded_code=%s error_type=%s", model,
                             e.body["id"], e.body["provider"], e.status_code,
                             metadata.get("error_type") if isinstance(metadata, dict) else None)
-            if kwargs and not order and not isinstance(e, _CompletionResponseError):
-                # A returned error/empty completion is not evidence that optional
-                # fields are unsupported. Preserve the exact request on its retry.
-                log.warning("%s erred with optional request fields (%s); dropping them "
-                            "and retrying", model, name)
-                kwargs = {}
-                continue
             body = getattr(e, "body", None)        # v35.1: surface the provider's actual
             detail = f" body={str(body)[:300]}" if body else ""  # complaint — a 400's
             if attempt == 3:                       # class name alone hides the cause

@@ -1,7 +1,9 @@
 """HTTP 200 may carry a provider error, including no completion choices."""
 from copy import deepcopy
 
+import httpx
 import pytest
+from openai import APIConnectionError, APIStatusError, APITimeoutError
 from openai.types.chat import ChatCompletion
 
 from llm import client as C
@@ -22,7 +24,10 @@ def install(monkeypatch, replies):
 
     def create(**kwargs):
         requests.append(deepcopy(kwargs))
-        return next(iterator)
+        reply = next(iterator)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
 
     monkeypatch.setattr(C, '_client', SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
@@ -81,6 +86,59 @@ def test_transient_error_then_success_keeps_exact_request_options(monkeypatch):
     assert len(requests) == 2 and requests[0] == requests[1]
     assert C.pop_last_reasoning() == 'owned reasoning'
     assert C.provider_counts() == {'test-model': {'test-provider': 1}}
+
+
+def transport_error(kind):
+    request = httpx.Request('POST', 'https://example.invalid/v1/chat/completions')
+    if kind == 'connection':
+        return APIConnectionError(request=request)
+    if kind == 'timeout':
+        return APITimeoutError(request=request)
+    return APIStatusError('offline HTTP failure', response=httpx.Response(
+        kind, request=request), body={'message': 'offline provider diagnostic'})
+
+
+@pytest.mark.parametrize('kind', [429, 503, 'connection', 'timeout'])
+@pytest.mark.parametrize('provider_order', [[], ['Pinned']])
+def test_transport_retry_preserves_complete_request(monkeypatch, kind, provider_order):
+    requests = install(monkeypatch, [transport_error(kind),
+                                    response({'choices': [good_choice()]})])
+    history = [C.durable_user_message('prior observation', b'\x89PNG\r\n\x1a\nprior'),
+               {'role': 'assistant', 'content': 'prior answer',
+                'reasoning': 'prior reasoning'}]
+    original_history = deepcopy(history)
+    answer = C.chat('test-model', 'system', 'user', history=history,
+                    image=b'\xff\xd8current', max_tokens=1234, temperature=0.7,
+                    reasoning_effort='max', top_p=0.9, json_object=True,
+                    provider_order=provider_order, provider_allow_fallbacks=False,
+                    provider_require_parameters=True)
+
+    assert answer == 'valid reply'
+    assert len(requests) == 2
+    assert requests[0]['extra_body']['reasoning'] == {'effort': 'max'}
+    assert requests[0]['response_format'] == {'type': 'json_object'}
+    assert requests[0]['top_p'] == 0.9
+    assert requests[1] == requests[0]
+    assert history == original_history
+    assert C.pop_last_reasoning() == 'owned reasoning'
+    assert C.provider_counts() == {'test-model': {'test-provider': 1}}
+
+
+@pytest.mark.parametrize('code', [400, 422])
+def test_fatal_transport_error_retains_options_until_exhaustion(monkeypatch, code):
+    requests = install(monkeypatch, [transport_error(code) for _ in range(4)])
+    with pytest.raises(C.LLMTransportError) as caught:
+        C.chat('test-model', 'system', 'user', reasoning_max_tokens=512,
+               top_p=0.8, json_object=True)
+
+    assert len(requests) == 4
+    assert requests[0]['extra_body']['reasoning'] == {'max_tokens': 512}
+    assert requests[0]['response_format'] == {'type': 'json_object'}
+    assert requests[0]['top_p'] == 0.8
+    assert all(item == requests[0] for item in requests)
+    assert caught.value.status_code == code
+    assert caught.value.recoverable is False
+    assert C.provider_counts() == {}
 
 
 def test_error_with_partial_choice_is_not_a_successful_agent_turn(monkeypatch):
